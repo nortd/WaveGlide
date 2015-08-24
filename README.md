@@ -63,7 +63,7 @@ A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additio
 * flow rate dial (need 15l/min)
 * cylinder connector: DIN477
 * tube connector: ?
-* EUR 150 on Amazon
+* about EUR 150
 
 ![pressure regulator](img/gti-rescue-25.png)
 
@@ -100,8 +100,6 @@ A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additio
     * 1500m, 2800m, 3800m (3x)
   * buzzer alarm (lack of oxygen flow)
 * harness clip or arm strap
-
-#### Breathing Sensor
 
 
 ### Nasal Cannula
