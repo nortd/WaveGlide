@@ -49,6 +49,7 @@ At the top of the cylinder is a high pressure valve. This connects to a pressure
 
 A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additionally a mechanical flow meter in this tube supplies a reduandant reading of the system's proper function.
 
+![waveglide](img/waveglide.png)
 
 ### Oxygen Tank
 * aluminium, medical (white in EU)
