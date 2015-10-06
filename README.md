@@ -63,8 +63,10 @@ A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additio
 * manometer for checking the oxygen level in the cylinder
 * flow rate dial (need 15l/min)
 * cylinder connector: DIN477
-* tube connector: ?
-* about EUR 150
+* output: 9/16" male
+* O2 GTI Rescue 25
+* AeroWay Fast-15
+
 
 ![pressure regulator](img/gti-rescue-25.png)
 
@@ -108,9 +110,25 @@ A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additio
 
 ### Tubing
 * crush and kink-resistant
+* from pressure regulator to controller
+  * [Plyamide hose, 6x4, blue](https://www.landefeld.de/artikel/en/polyamide-hose-6-x-4-mm-blue-by-meter/PA+6X4+BLAU)
+* to breathing sensor
+  * [Polyamide hose 4x2.7 blue](https://www.landefeld.de/artikel/en/polyamide-hose-4-x-2-7-mm-blue-by-meter/PA+4X2%2c7+BLAU)
+
+
+### Tube Coupling
+* [coupling M5, 4mm](https://www.landefeld.de/artikel/en/straight-push-in-fitting-m-5-6mm-model-series-topline/RIB+01+06+05)
+* [coupling M5, 6mm](https://www.landefeld.de/artikel/en/straight-push-in-fitting-m-5-6mm-model-series-topline/RIB+01+06+05), 2x
+
 
 ### Oxygen Flow Meter
 * [Nelson A3 flow meter](http://www.nelsonoxygen.com/meters.htm)
+
+### Boost Converter
+* PTN04050CAST
+  * 2.95V to 5.5V -> 5V to 15V @ 12W
+* TPS81256SIPR
+
 
 
 Firmware
