@@ -85,8 +85,13 @@ A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additio
   * 2000mA -> 7.4W -> 10h
 * charging via micro-USB
 * 12V boost converter
+  * PTN04050CAD
+    * 100uF - ECA-1HM101
 * breath sensor
-  * MPXV7002G
+  * MPXV7002DP
+    * 1uF - USR1H010MDD
+    * 0.01uF - FK28C0G1H103J
+    * 470pF - K471J15C0GF53L2
 * barometric sensor
   * BMP180, adafruit board for prototyping
 * solenoid circuitry
@@ -124,10 +129,6 @@ A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additio
 ### Oxygen Flow Meter
 * [Nelson A3 flow meter](http://www.nelsonoxygen.com/meters.htm)
 
-### Boost Converter
-* PTN04050CAST
-  * 2.95V to 5.5V -> 5V to 15V @ 12W
-* TPS81256SIPR
 
 
 
