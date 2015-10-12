@@ -490,3 +490,4 @@ Adafruit_SSD1351::Adafruit_SSD1351(uint8_t cs, uint8_t rs,  uint8_t rst) : Adafr
     rspinmask   = digitalPinToBitMask(rs);
 
 }
+

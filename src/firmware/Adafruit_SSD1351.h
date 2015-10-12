@@ -123,3 +123,4 @@ class Adafruit_SSD1351  : public virtual Adafruit_GFX {
   PortReg *csport, *rsport, *sidport, *sclkport;
   PortMask cspinmask, rspinmask, sidpinmask, sclkpinmask;
 };
+

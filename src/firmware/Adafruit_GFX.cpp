@@ -613,3 +613,4 @@ boolean Adafruit_GFX_Button::contains(int16_t x, int16_t y) {
  boolean Adafruit_GFX_Button::isPressed() { return currstate; }
  boolean Adafruit_GFX_Button::justPressed() { return (currstate && !laststate); }
  boolean Adafruit_GFX_Button::justReleased() { return (!currstate && laststate); }
+
