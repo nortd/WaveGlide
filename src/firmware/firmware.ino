@@ -135,7 +135,10 @@ void setup(void) {
 
 void loop() {
   last_sense_breathing_dur = millis()-last_sense_breathing;
-  if (last_sense_breathing_dur > 100) {
+  if (last_sense_breathing_dur > RHYTHM_TEMPRES) {
+    // tft.fillRect(6, 32, 4*6, 32, BLACK);
+    // sprintf(charBuf, "[%i]", last_sense_breathing_dur);
+    // displayText(charBuf, 6, 32, WHITE);
     sense_breathing();
     last_sense_breathing = millis();
   }
@@ -209,39 +212,59 @@ void sense_altitude() {
 
 
 void control_valve() {
-  // buttonState = digitalRead(button);
-  if (breathval < 510 && breathval_prev > 510) {
-    displayText(">", 90, 0, BLUE);
-    // trigger
-    oxy_on = true;
-    oxy_on_time = millis();
-  } else {
-    tft.fillRect(90, 0 , 95, 7, BLACK);
-  }
-  oxy_on_dur = millis() - oxy_on_time;
 
-  // sprintf(charBuf, "%i", oxy_on_dur);
-  // tft.fillRect(0, 16, 128, 23, BLACK);
-  // displayText(charBuf, 0, 16, WHITE);
-
-  if (oxy_on_dur > 1000) {
-    displayText("-", 80, 0, RED);
-    oxy_on = false;
-  } else {
-    tft.fillRect(80, 0 , 85, 7, BLACK);
-  }
-
-  if (oxy_on){
+  if (rhythm_oxygen(1.0)) {
     displayText("*", 100, 0, BLUE);
-    digitalWrite(valve, HIGH);
+    // digitalWrite(valve, HIGH);
     graph_col = BLUE;
   } else {
-    digitalWrite(valve, LOW);
+    // digitalWrite(valve, LOW);
     tft.fillRect(100, 0 , 105, 7, BLACK);
     graph_col = WHITE;
   }
 
-  breathval_prev = breathval;
+  // display period
+  tft.drawLine(0, tft.height()-41, tft.width(), tft.height()-41, BLACK);
+  tft.drawLine(0, tft.height()-41, rhythm_get_period(), tft.height()-41, RED);
+
+  // display phase
+  tft.drawLine(0, tft.height()-42, tft.width(), tft.height()-42, BLACK);
+  tft.drawLine(0, tft.height()-42, rhythm_get_phase(), tft.height()-42, CYAN);
+
+  //
+  // // buttonState = digitalRead(button);
+  // if (breathval < 510 && breathval_prev > 510) {
+  //   displayText(">", 90, 0, BLUE);
+  //   // trigger
+  //   oxy_on = true;
+  //   oxy_on_time = millis();
+  // } else {
+  //   tft.fillRect(90, 0 , 95, 7, BLACK);
+  // }
+  // oxy_on_dur = millis() - oxy_on_time;
+  //
+  // // sprintf(charBuf, "%i", oxy_on_dur);
+  // // tft.fillRect(0, 16, 128, 23, BLACK);
+  // // displayText(charBuf, 0, 16, WHITE);
+  //
+  // if (oxy_on_dur > 1000) {
+  //   displayText("-", 80, 0, RED);
+  //   oxy_on = false;
+  // } else {
+  //   tft.fillRect(80, 0 , 85, 7, BLACK);
+  // }
+  //
+  // if (oxy_on){
+  //   displayText("*", 100, 0, BLUE);
+  //   digitalWrite(valve, HIGH);
+  //   graph_col = BLUE;
+  // } else {
+  //   digitalWrite(valve, LOW);
+  //   tft.fillRect(100, 0 , 105, 7, BLACK);
+  //   graph_col = WHITE;
+  // }
+  //
+  // breathval_prev = breathval;
 }
 
 

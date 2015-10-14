@@ -17,9 +17,15 @@
 #ifndef rhythm_h
 #define rhythm_h
 
+#define RHYTHM_TEMPRES 50  // temporal resolution in ms
+
 // void rhythm_init();
 
 uint8_t rhythm_addval(int val);
+bool rhythm_oxygen(float dur_pct);
+uint8_t rhythm_get_period();
+uint8_t rhythm_get_phase();
+// bool rhythm_inhale_start();
 int rhythm_getgraph_y(int val);
 
 
