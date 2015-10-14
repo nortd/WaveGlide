@@ -1,11 +1,17 @@
-/******************************************************************************
-  WaveGlide firmware
+/*
+  firmware.ino - the main firmware file
+  Part of the WaveGlide firmware. See: https://github.com/nortd/WaveGlide
+  Copyright (c) 2015 Stefan Hechenberger
 
-  Written by Stefan Hechenberger for Nortd Labs.
-  BSD license, all text above must be included in any redistribution
-
-  https://github.com/nortd/WaveGlide
- *****************************************************************************/
+  The WaveGlide firmware is free software: you can redistribute it and/or
+  modify it under the terms of the GNU General Public License as published
+  by the Free Software Foundation, either version 3 of the License, or
+  (at your option) any later version.
+  The firmware is distributed in the hope that it will be useful, but WITHOUT
+  ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+  FITNESS FOR A PARTICULAR PURPOSE.  See the  GNU General Public License
+  for more details.
+*/
 
 // display pins
 #define sclk 13
@@ -47,15 +53,32 @@
 #include "Adafruit_Sensor.h"
 #include "Adafruit_BMP085_U.h"
 
+extern "C" {
+  #include "rhythm.h"
+}
 
+uint16_t last_sense_breathing = 0;
+uint16_t last_sense_breathing_dur = 0;
 int breathval = 0;
 int breathval_prev = 1023;
 bool oxy_on = false;
+uint16_t graph_col = WHITE;
+
+uint16_t last_sense_altitude = 0;
+uint16_t last_sense_altitude_dur = 0;
+int pressure = 0;
+int temperature = 0;
+int altitude = 0;  // pressure alt (bases on 1013 hPa)
+
+uint16_t last_control_valve = 0;
+uint16_t last_control_valve_dur = 0;
 uint16_t oxy_on_time = 0;
 uint16_t oxy_on_dur = 0;
-float baro_altitude = 0;
+
 int buttonState = 0;
 char charBuf[50];
+
+
 
 // Option 1: use any pins but a little slower
 //Adafruit_SSD1351 tft = Adafruit_SSD1351(cs, dc, mosi, sclk, rst);
@@ -81,7 +104,7 @@ void setup(void) {
   // analogWrite(buzzer, 150);
 
   Serial.begin(9600);
-  Serial.println("init");
+  // Serial.println("init");
   tft.begin();
   //tft.setRotation(1);  // 1: 90 clockwise, 2: 180, 3: 270
 
@@ -97,7 +120,7 @@ void setup(void) {
   tft.fillRect(0, 0, 128, 96, BLACK);
   time = millis() - time;
 
-  Serial.println(time, DEC);
+  // Serial.println(time, DEC);
   delay(500);
 
   lcdTestPattern();
@@ -106,95 +129,129 @@ void setup(void) {
   delay(100);
   tft.invert(false);
   delay(100);
+
+  tft.fillScreen(BLACK);
 }
 
 void loop() {
-  tft.fillScreen(BLACK);
-  tft.drawLine(0, tft.height()-12, tft.width(), tft.height()-12, WHITE);
-  breathval = analogRead(breath);
-  Serial.println(breathval);
+  last_sense_breathing_dur = millis()-last_sense_breathing;
+  if (last_sense_breathing_dur > 100) {
+    sense_breathing();
+    last_sense_breathing = millis();
+  }
 
+  last_sense_altitude_dur = millis()-last_sense_altitude;
+  if (last_sense_altitude_dur > 1000) {
+    sense_altitude();
+    last_sense_altitude = millis();
+  }
+
+
+  last_control_valve_dur = millis()-last_control_valve;
+  if (last_control_valve_dur > 50) {
+    control_valve();
+    last_control_valve = millis();
+  }
+}
+
+
+
+void sense_breathing() {
+  breathval = analogRead(breath);
+  uint8_t samplepos = rhythm_addval(breathval);
+  Serial.println(breathval);
+  tft.drawLine(samplepos, tft.height()-10,
+               samplepos, tft.height()-10-rhythm_getgraph_y(breathval),
+               graph_col);
+   if (samplepos+1 < tft.width()) {
+     tft.drawLine(samplepos+1, tft.height(),
+                  samplepos+1, tft.height()-40,
+                  BLACK);
+   } else {
+     tft.drawLine(0, tft.height(),
+                  0, tft.height()-40,
+                  BLACK);
+   }
+
+  tft.fillRect(4*6, 0 , 4*6, 7, BLACK);
   sprintf(charBuf, "val: %i", breathval);
   displayText(charBuf, 0, 0, WHITE);
+}
 
-  // Get a new barometric sensor event
+
+
+void sense_altitude() {
   sensors_event_t event;
   bmp.getEvent(&event);
 
   // Display the results (barometric pressure is measure in hPa)
   if (event.pressure) {
-    Serial.print("Pressure:    ");
-    Serial.print(event.pressure);
-    Serial.println(" hPa");
-    /* Calculating altitude with reasonable accuracy requires pressure    *
-     * sea level pressure for your position at the moment the data is     *
-     * converted, as well as the ambient temperature in degress           *
-     * celcius.  If you don't have these values, a 'generic' value of     *
-     * 1013.25 hPa can be used (defined as SENSORS_PRESSURE_SEALEVELHPA   *
-     * in sensors.h), but this isn't ideal and will give variable         *
-     * results from one day to the next.                                  *
-     *                                                                    *
-     * You can usually find the current SLP value by looking at weather   *
-     * websites or from environmental information centers near any major  *
-     * airport.                                                           *
-     *                                                                    *
-     * For example, for Paris, France you can check the current mean      *
-     * pressure and sea level at: http://bit.ly/16Au8ol                   */
+    pressure = round(event.pressure);
+    float temp;
+    bmp.getTemperature(&temp);
+    temperature = round(temp);
+    // Serial.print("Temperature: ");
+    // Serial.print(temp);
+    // Serial.println(" C");
 
-    /* First we get the current temperature from the BMP085 */
-    float temperature;
-    bmp.getTemperature(&temperature);
-    Serial.print("Temperature: ");
-    Serial.print(temperature);
-    Serial.println(" C");
-
-    /* Then convert the atmospheric pressure, SLP and temp to altitude    */
-    /* Update this next line with the current SLP for better results      */
     float seaLevelPressure = SENSORS_PRESSURE_SEALEVELHPA;
-    baro_altitude = bmp.pressureToAltitude(seaLevelPressure,
-                                           event.pressure,
-                                           temperature);
+    altitude = round(bmp.pressureToAltitude(seaLevelPressure,
+                                            event.pressure,
+                                            temperature));
 
-    sprintf(charBuf, "alt: %im", round(baro_altitude));
-    displayText(charBuf, 0, 48, WHITE);
+    tft.fillRect(0, 16 , 5*6, 23, BLACK);
+    sprintf(charBuf, "%im", altitude);
+    displayText(charBuf, 0, 16, WHITE);
   } else {
     // Serial.println("Sensor error");
   }
+}
 
+
+void control_valve() {
   // buttonState = digitalRead(button);
-  if (breathval < 540 && breathval_prev > 540) {
+  if (breathval < 510 && breathval_prev > 510) {
     displayText(">", 90, 0, BLUE);
     // trigger
     oxy_on = true;
     oxy_on_time = millis();
+  } else {
+    tft.fillRect(90, 0 , 95, 7, BLACK);
   }
   oxy_on_dur = millis() - oxy_on_time;
 
-  sprintf(charBuf, "%i", oxy_on_dur);
-  displayText(charBuf, 0, 16, WHITE);
+  // sprintf(charBuf, "%i", oxy_on_dur);
+  // tft.fillRect(0, 16, 128, 23, BLACK);
+  // displayText(charBuf, 0, 16, WHITE);
 
   if (oxy_on_dur > 1000) {
     displayText("-", 80, 0, RED);
     oxy_on = false;
+  } else {
+    tft.fillRect(80, 0 , 85, 7, BLACK);
   }
 
   if (oxy_on){
     displayText("*", 100, 0, BLUE);
     digitalWrite(valve, HIGH);
+    graph_col = BLUE;
   } else {
     digitalWrite(valve, LOW);
+    tft.fillRect(100, 0 , 105, 7, BLACK);
+    graph_col = WHITE;
   }
 
   breathval_prev = breathval;
-
-  delay(200);
 }
+
+
 
 void displayText(char *text, int16_t x, int16_t y, uint16_t color) {
   tft.setCursor(x,y);
   tft.setTextColor(color);
   tft.print(text);
 }
+
 
 
 void lcdTestPattern(void)
