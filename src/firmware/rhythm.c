@@ -29,7 +29,7 @@ int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
 #define RHYTHM_ANALYZE_EVERY 10  // must be < RHYTHM_BUFFER_SIZE
-#define RHYTHM_OFFSET_PCT 0.1    // trigger feature to inhalation start pct
+#define RHYTHM_OFFSET_PCT 0.0    // trigger feature to inhalation start pct
 #define RHYTHM_INHALE_PCT 0.3    // period percentage useful for oxygenation
 #define RHYTHM_FEATURE_SIZE 32
 uint8_t feature_distances[RHYTHM_FEATURE_SIZE] = {0};
@@ -138,9 +138,10 @@ void compute_period_and_phase() {
       if (++k == RHYTHM_VALS_SIZE) { k = 0; } // inc, wrap
     } while (k != vals_cursor);
     // analyze vals, check deltas
-    if ((first_val - last_val) > RHYTHM_VALS_BIG_DELTA
-        && small_delta_ok_num == RHYTHM_VALS_SIZE - 1
-        && sample_count > 0.5*period_smoothed) {
+    // if ((first_val - last_val) > RHYTHM_VALS_BIG_DELTA
+    //     && small_delta_ok_num == RHYTHM_VALS_SIZE - 1
+    //     && sample_count > 0.5*period_smoothed) {
+    if (first_val > 525 && last_val < 525 && sample_count > 0.5*period_smoothed) {
       // found falling ridge
       feature_distances[feature_cursor] = sample_count;
       sample_count = 0;

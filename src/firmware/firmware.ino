@@ -213,12 +213,12 @@ void sense_altitude() {
 
 void control_valve() {
 
-  if (rhythm_oxygen(1.0)) {
+  if (rhythm_oxygen(0.2)) {
     displayText("*", 100, 0, BLUE);
-    // digitalWrite(valve, HIGH);
+    digitalWrite(valve, HIGH);
     graph_col = BLUE;
   } else {
-    // digitalWrite(valve, LOW);
+    digitalWrite(valve, LOW);
     tft.fillRect(100, 0 , 105, 7, BLACK);
     graph_col = WHITE;
   }
