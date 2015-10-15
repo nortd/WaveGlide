@@ -164,7 +164,7 @@ void sense_breathing() {
   uint8_t samplepos = rhythm_addval(breathval);
   Serial.println(breathval);
   tft.drawLine(samplepos, tft.height()-10,
-               samplepos, tft.height()-10-rhythm_getgraph_y(breathval),
+               samplepos, tft.height()-10-(breathval-rhythm_get_baseline())*0.5,
                graph_col);
    if (samplepos+1 < tft.width()) {
      tft.drawLine(samplepos+1, tft.height(),
@@ -176,9 +176,32 @@ void sense_breathing() {
                   BLACK);
    }
 
-  tft.fillRect(4*6, 0 , 4*6, 7, BLACK);
-  sprintf(charBuf, "val: %i", breathval);
+  tft.fillRect(0, 0 , 10*6, 7, BLACK);
+  sprintf(charBuf, "%i", breathval);
   displayText(charBuf, 0, 0, WHITE);
+
+  sprintf(charBuf, "%i", rhythm_get_baseline());
+  displayText(charBuf, 6*6, 0, MAGENTA);
+
+
+  if (rhythm_oxygen(1.0)) {
+    // displayText("*", 100, 0, BLUE);
+    digitalWrite(valve, HIGH);
+    graph_col = BLUE;
+  } else {
+    digitalWrite(valve, LOW);
+    // tft.fillRect(100, 0 , 105, 7, BLACK);
+    graph_col = WHITE;
+  }
+
+  // display period
+  tft.drawLine(0, tft.height()-41, tft.width(), tft.height()-41, BLACK);
+  tft.drawLine(0, tft.height()-41, rhythm_get_period(), tft.height()-41, RED);
+
+  // display phase
+  tft.drawLine(0, tft.height()-42, tft.width(), tft.height()-42, BLACK);
+  tft.drawLine(0, tft.height()-42, rhythm_get_phase(), tft.height()-42, CYAN);
+
 }
 
 
@@ -213,23 +236,23 @@ void sense_altitude() {
 
 void control_valve() {
 
-  if (rhythm_oxygen(0.2)) {
-    displayText("*", 100, 0, BLUE);
-    digitalWrite(valve, HIGH);
-    graph_col = BLUE;
-  } else {
-    digitalWrite(valve, LOW);
-    tft.fillRect(100, 0 , 105, 7, BLACK);
-    graph_col = WHITE;
-  }
-
-  // display period
-  tft.drawLine(0, tft.height()-41, tft.width(), tft.height()-41, BLACK);
-  tft.drawLine(0, tft.height()-41, rhythm_get_period(), tft.height()-41, RED);
-
-  // display phase
-  tft.drawLine(0, tft.height()-42, tft.width(), tft.height()-42, BLACK);
-  tft.drawLine(0, tft.height()-42, rhythm_get_phase(), tft.height()-42, CYAN);
+  // if (rhythm_oxygen(0.2)) {
+  //   // displayText("*", 100, 0, BLUE);
+  //   digitalWrite(valve, HIGH);
+  //   graph_col = BLUE;
+  // } else {
+  //   digitalWrite(valve, LOW);
+  //   // tft.fillRect(100, 0 , 105, 7, BLACK);
+  //   graph_col = WHITE;
+  // }
+  //
+  // // display period
+  // tft.drawLine(0, tft.height()-41, tft.width(), tft.height()-41, BLACK);
+  // tft.drawLine(0, tft.height()-41, rhythm_get_period(), tft.height()-41, RED);
+  //
+  // // display phase
+  // tft.drawLine(0, tft.height()-42, tft.width(), tft.height()-42, BLACK);
+  // tft.drawLine(0, tft.height()-42, rhythm_get_phase(), tft.height()-42, CYAN);
 
   //
   // // buttonState = digitalRead(button);
