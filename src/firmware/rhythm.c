@@ -23,8 +23,8 @@ int buffer[RHYTHM_BUFFER_SIZE] = {0};
 uint8_t buffer_cursor = 0;
 
 #define RHYTHM_VALS_SIZE 4
-#define RHYTHM_VALS_SMALL_DELTA 3
-#define RHYTHM_VALS_BIG_DELTA 20
+// #define RHYTHM_VALS_SMALL_DELTA 3
+// #define RHYTHM_VALS_BIG_DELTA 20
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
@@ -35,9 +35,10 @@ int baseline_ref = 512;
 uint8_t baseline_flat_dur = 0;
 
 #define RHYTHM_ANALYZE_EVERY 10  // must be < RHYTHM_BUFFER_SIZE
-#define RHYTHM_OFFSET_PCT 0.05    // trigger feature to inhalation start pct
+#define RHYTHM_OFFSET_PCT 0.0    // trigger feature to inhalation start pct
 #define RHYTHM_INHALE_PCT 0.3    // period percentage useful for oxygenation
 #define RHYTHM_FEATURE_SIZE 32
+#define RHYTHM_FEATURE_SUCK 3
 uint8_t feature_distances[RHYTHM_FEATURE_SIZE] = {0};
 uint8_t feature_cursor = 0;
 uint8_t addval_count = 0;
@@ -142,10 +143,10 @@ void compute_period_and_phase() {
       if (k == vals_cursor) { // first run
         first_val = vals[k];
       } else {               // not first run
-        // small delta check
-        if (abs(last_val - vals[k]) < RHYTHM_VALS_SMALL_DELTA) {
-          small_delta_ok_num++;
-        }
+        // // small delta check
+        // if (abs(last_val - vals[k]) < RHYTHM_VALS_SMALL_DELTA) {
+        //   small_delta_ok_num++;
+        // }
       }
       last_val = vals[k];
       if (++k == RHYTHM_VALS_SIZE) { k = 0; } // inc, wrap
@@ -155,15 +156,10 @@ void compute_period_and_phase() {
     // if ((first_val - last_val) > RHYTHM_VALS_BIG_DELTA
     //     && small_delta_ok_num == RHYTHM_VALS_SIZE - 1
     //     && sample_count > 0.5*period_smoothed) {
-    if (first_val > baseline && last_val < baseline
-        // && (first_val - last_val) > RHYTHM_VALS_SMALL_DELTA
-        // && (first_val - last_val) < RHYTHM_VALS_BIG_DELTA
+    if (first_val+RHYTHM_FEATURE_SUCK > baseline
+        && last_val+RHYTHM_FEATURE_SUCK < baseline
         && baseline_flat_dur < 6
         && feature_triggerable
-        // && sample_count > 0.3*period_smoothed
-        // && sample_count > 0.3*period_smoothed
-        // && sample_count > 2*RHYTHM_VALS_SIZE
-        // && small_delta_ok_num == RHYTHM_VALS_SIZE - 1
       ) {
       // found end of exhale
       feature_distances[feature_cursor] = sample_count;
@@ -186,7 +182,7 @@ void compute_period_and_phase() {
   while (feature_analyze_cursor != feature_cursor) {
     int period = feature_distances[feature_analyze_cursor];
     if (period > RHYTHM_BUFFER_SIZE) { period = RHYTHM_BUFFER_SIZE; }  // cap
-    period_smoothed = 0.2*period_smoothed + 0.8*period;  // smooth a bit
+    period_smoothed = 0.1*period_smoothed + 0.9*period;  // smooth a bit
     if (++feature_analyze_cursor == RHYTHM_FEATURE_SIZE) { feature_analyze_cursor = 0; } // inc, wrap
   } // next analysis starts from feature_cursor
 
