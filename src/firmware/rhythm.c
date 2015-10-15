@@ -29,7 +29,7 @@ int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
 #define RHYTHM_BASELINE_TOL 2
-#define RHYTHM_BASELINE_DUR 80  // dur for new baseline, 2s (at 50ms/sample)
+#define RHYTHM_BASELINE_DUR 3000/RHYTHM_TEMPRES  // dur for new baseline, 3s
 int baseline = 512;  // baseline sensor read (when not breathing)
 int baseline_ref = 512;
 uint8_t baseline_flat_dur = 0;
@@ -116,11 +116,9 @@ void compute_period_and_phase() {
   // loop through buffer from analyze_cursor to (excluding) buffer_cursor
   while (analyze_cursor != buffer_cursor) {
     // check for baseline
-    bool got_baseval = false;
     if (buffer[analyze_cursor] <= (baseline_ref + RHYTHM_BASELINE_TOL)
         && buffer[analyze_cursor] >= (baseline_ref - RHYTHM_BASELINE_TOL)) {
       baseline_flat_dur++;
-      got_baseval = true;
       if (baseline_flat_dur == RHYTHM_BASELINE_DUR) {
         // got new baseline
         baseline = baseline_ref;
@@ -160,7 +158,7 @@ void compute_period_and_phase() {
     if (first_val > baseline && last_val < baseline
         // && (first_val - last_val) > RHYTHM_VALS_SMALL_DELTA
         // && (first_val - last_val) < RHYTHM_VALS_BIG_DELTA
-        && !got_baseval
+        && baseline_flat_dur < 6
         && feature_triggerable
         // && sample_count > 0.3*period_smoothed
         // && sample_count > 0.3*period_smoothed
@@ -173,11 +171,13 @@ void compute_period_and_phase() {
       feature_triggerable = false;
       if (++feature_cursor == RHYTHM_FEATURE_SIZE) { feature_cursor = 0; } // inc, wrap
     }
-    if (first_val < baseline && last_val > baseline) {
+    if (first_val < last_val) {
       feature_triggerable = true;
     }
     // housekeeping
-    sample_count++;  // inc for every buffer entry
+    if (sample_count < RHYTHM_BUFFER_SIZE) { // cap phase
+      sample_count++;  // inc for every buffer entry
+    }
     if (++analyze_cursor == RHYTHM_BUFFER_SIZE) { analyze_cursor = 0; } // inc, wrap
   } // next analysis starts from buffer_cursor
 
@@ -185,6 +185,7 @@ void compute_period_and_phase() {
   // from feature_analyze_cursor to feature_cursor (ex)
   while (feature_analyze_cursor != feature_cursor) {
     int period = feature_distances[feature_analyze_cursor];
+    if (period > RHYTHM_BUFFER_SIZE) { period = RHYTHM_BUFFER_SIZE; }  // cap
     period_smoothed = 0.2*period_smoothed + 0.8*period;  // smooth a bit
     if (++feature_analyze_cursor == RHYTHM_FEATURE_SIZE) { feature_analyze_cursor = 0; } // inc, wrap
   } // next analysis starts from feature_cursor
