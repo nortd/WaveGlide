@@ -24,7 +24,7 @@ uint8_t buffer_cursor = 0;
 
 #define RHYTHM_VALS_SIZE 4
 // #define RHYTHM_VALS_SMALL_DELTA 3
-// #define RHYTHM_VALS_BIG_DELTA 20
+#define RHYTHM_VALS_BIG_DELTA 100
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
@@ -160,6 +160,7 @@ void compute_period_and_phase() {
         && last_val+RHYTHM_FEATURE_SUCK < baseline
         && baseline_flat_dur < 6
         && feature_triggerable
+        && (first_val - last_val) < RHYTHM_VALS_BIG_DELTA
       ) {
       // found end of exhale
       feature_distances[feature_cursor] = sample_count;
