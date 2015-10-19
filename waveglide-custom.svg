@@ -52,8 +52,23 @@
     <path
        id="path4187"
        style="fill:#b3b3b3;fill-rule:evenodd;stroke:none;stroke-width:1px;stroke-linecap:butt;stroke-linejoin:miter;stroke-opacity:1"
-       d="m 89.854331,-34.933075 0,60.23622 60.236219,0 0,-60.23622 z M -0.5,-332.57087 l 240.94488,0 0,425.19685 -240.94488,0 z"
+       d="m 89.854331,-61.50789 0,62.00787413 60.236219,0 0,-62.00787413 z M -0.5,-332.57087 l 240.94488,0 0,425.19685 -240.94488,0 z"
        inkscape:connector-curvature="0"
        sodipodi:nodetypes="cccccccccc" />
+  </g>
+  <g
+     id="silkscreen">
+    <circle
+       r="17.53937"
+       cy="379.13385"
+       cx="95.669289"
+       id="path4191"
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35433072;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1" />
+    <circle
+       style="fill:none;fill-opacity:1;stroke:#000000;stroke-width:0.35433072;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
+       id="circle4193"
+       cx="145.27559"
+       cy="396.8504"
+       r="17.53937" />
   </g>
 </svg>
