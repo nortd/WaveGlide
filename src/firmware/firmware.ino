@@ -69,11 +69,16 @@ uint16_t last_sense_altitude_dur = 0;
 int pressure = 0;
 int temperature = 0;
 int altitude = 0;  // pressure alt (bases on 1013 hPa)
+float altitude_smoothed = 0;
 
-uint16_t last_control_valve = 0;
-uint16_t last_control_valve_dur = 0;
-uint16_t oxy_on_time = 0;
-uint16_t oxy_on_dur = 0;
+#define OXYGEN_100PCT_ALTITUDE 10058  // FL330
+#define OXYGEN_START_ALTITUDE1 1525   // FL50
+#define OXYGEN_START_ALTITUDE2 3050   // FL100
+#define OXYGEN_START_ALTITUDE3 3812   // FL125
+#define OXYGEN_START_ALTITUDE4 4270   // FL140
+#define OXYGEN_MIN_PCT 0.1  // 0.0 to 1.0, typically 0.1 to 0.3
+float oxygen_pct = 0.0;
+int oxygen_start_alt = OXYGEN_START_ALTITUDE3;
 
 int buttonState = 0;
 char charBuf[50];
@@ -144,17 +149,11 @@ void loop() {
   }
 
   last_sense_altitude_dur = millis()-last_sense_altitude;
-  if (last_sense_altitude_dur > 1000) {
+  if (last_sense_altitude_dur > RHYTHM_TEMPRES*10) {
     sense_altitude();
     last_sense_altitude = millis();
   }
 
-
-  last_control_valve_dur = millis()-last_control_valve;
-  if (last_control_valve_dur > 50) {
-    control_valve();
-    last_control_valve = millis();
-  }
 }
 
 
@@ -184,7 +183,7 @@ void sense_breathing() {
   displayText(charBuf, 6*6, 0, MAGENTA);
 
 
-  if (rhythm_oxygen(1.0)) {
+  if (rhythm_oxygen(altitude_pct)) {
     // displayText("*", 100, 0, BLUE);
     digitalWrite(valve, HIGH);
     graph_col = BLUE;
@@ -224,6 +223,13 @@ void sense_altitude() {
     altitude = round(bmp.pressureToAltitude(seaLevelPressure,
                                             event.pressure,
                                             temperature));
+    if (altitude < altitude_smoothed + 20000
+        && altitude > altitude_smoothed - 1000) {
+      altitude_smoothed = 0.8*altitude_smoothed + 0.2*altitude;
+      set_oxygen_pct(altitude_smoothed);
+    } else {
+      // reject
+    }
 
     tft.fillRect(0, 16 , 5*6, 23, BLACK);
     sprintf(charBuf, "%im", altitude);
@@ -234,62 +240,20 @@ void sense_altitude() {
 }
 
 
-void control_valve() {
-
-  // if (rhythm_oxygen(0.2)) {
-  //   // displayText("*", 100, 0, BLUE);
-  //   digitalWrite(valve, HIGH);
-  //   graph_col = BLUE;
-  // } else {
-  //   digitalWrite(valve, LOW);
-  //   // tft.fillRect(100, 0 , 105, 7, BLACK);
-  //   graph_col = WHITE;
-  // }
-  //
-  // // display period
-  // tft.drawLine(0, tft.height()-41, tft.width(), tft.height()-41, BLACK);
-  // tft.drawLine(0, tft.height()-41, rhythm_get_period(), tft.height()-41, RED);
-  //
-  // // display phase
-  // tft.drawLine(0, tft.height()-42, tft.width(), tft.height()-42, BLACK);
-  // tft.drawLine(0, tft.height()-42, rhythm_get_phase(), tft.height()-42, CYAN);
-
-  //
-  // // buttonState = digitalRead(button);
-  // if (breathval < 510 && breathval_prev > 510) {
-  //   displayText(">", 90, 0, BLUE);
-  //   // trigger
-  //   oxy_on = true;
-  //   oxy_on_time = millis();
-  // } else {
-  //   tft.fillRect(90, 0 , 95, 7, BLACK);
-  // }
-  // oxy_on_dur = millis() - oxy_on_time;
-  //
-  // // sprintf(charBuf, "%i", oxy_on_dur);
-  // // tft.fillRect(0, 16, 128, 23, BLACK);
-  // // displayText(charBuf, 0, 16, WHITE);
-  //
-  // if (oxy_on_dur > 1000) {
-  //   displayText("-", 80, 0, RED);
-  //   oxy_on = false;
-  // } else {
-  //   tft.fillRect(80, 0 , 85, 7, BLACK);
-  // }
-  //
-  // if (oxy_on){
-  //   displayText("*", 100, 0, BLUE);
-  //   digitalWrite(valve, HIGH);
-  //   graph_col = BLUE;
-  // } else {
-  //   digitalWrite(valve, LOW);
-  //   tft.fillRect(100, 0 , 105, 7, BLACK);
-  //   graph_col = WHITE;
-  // }
-  //
-  // breathval_prev = breathval;
+void set_oxygen_pct(float alt) {
+  // set a oxygen percentaged based on altitude, linearly
+  if (alt > oxygen_start_alt) {
+    if (alt < OXYGEN_100PCT_ALTITUDE) {
+      // map oxygen_start_alt:OXYGEN_100PCT_ALTITUDE -> OXYGEN_MIN_PCT:1.0
+      oxygen_pct = (1.0-OXYGEN_MIN_PCT)*(alt-oxygen_start_alt)
+                 /(OXYGEN_100PCT_ALTITUDE - oxygen_start_alt) + OXYGEN_MIN_PCT;
+    } else {
+      oxygen_pct = 1.0; // 100%
+    }
+  } else {
+    oxygen_pct = 0.0; // 0%, below start altitude
+  }
 }
-
 
 
 void displayText(char *text, int16_t x, int16_t y, uint16_t color) {
