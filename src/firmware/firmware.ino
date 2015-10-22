@@ -44,6 +44,7 @@
 #define MAGENTA         0xF81F
 #define YELLOW          0xFFE0
 #define WHITE           0xFFFF
+#define GRAY            0x8888
 
 #include <SPI.h>
 #include "Adafruit_GFX.h"
@@ -72,13 +73,10 @@ int altitude = 0;  // pressure alt (bases on 1013 hPa)
 float altitude_smoothed = 0;
 
 #define OXYGEN_100PCT_ALTITUDE 10058  // FL330
-#define OXYGEN_START_ALTITUDE1 1525   // FL50
-#define OXYGEN_START_ALTITUDE2 3050   // FL100
-#define OXYGEN_START_ALTITUDE3 3812   // FL125
-#define OXYGEN_START_ALTITUDE4 4270   // FL140
 #define OXYGEN_MIN_PCT 0.1  // 0.0 to 1.0, typically 0.1 to 0.3
+int oxygen_start_alts[] = {1525, 3050, 3812, 4270}; // FL50, 100, 125, 140
 float oxygen_pct = 0.0;
-int oxygen_start_alt = OXYGEN_START_ALTITUDE3;
+int oxygen_start_alt = 3812;
 
 int buttonState = 0;
 char charBuf[50];
@@ -135,7 +133,36 @@ void setup(void) {
   tft.invert(false);
   delay(100);
 
+  // init display
   tft.fillScreen(BLACK);
+
+  displayText("START", 0, 3, GRAY);
+  tft.setTextSize(2);
+  displayText("FL100", 35, 0, CYAN);
+  tft.setTextSize(1);
+  tft.drawLine(94, 7, 127, 7, CYAN);
+  tft.fillRect(122, 8, 6, 31, CYAN);
+  displayText("330", 110, 0, GRAY);
+
+  displayText("ADJ", 12, 21, GRAY);
+  tft.fillRect(35, 20, 13, 10, GRAY);
+  tft.fillRect(49, 20, 9, 10, GRAY);
+  tft.fillRect(59, 20, 10, 10, RED);
+  tft.fillRect(70, 20, 10, 10, GRAY);
+  tft.fillRect(81, 20, 12, 10, GRAY);
+
+  displayText("O2", 16, 36, GRAY);
+  tft.fillRect(56, 36, 37, 7, CYAN);
+  displayText("100%", 28, 36, WHITE);
+
+  displayText("NOW", 11, 52, GRAY);
+  tft.setTextSize(2);
+  displayText("FL005", 35, 49, WHITE);
+  tft.setTextSize(1);
+  tft.drawLine(94, 56, 127, 56, WHITE);
+  tft.fillRect(124, 44, 4, 12, WHITE);
+  displayText("32*", 97, 57, GRAY);
+  displayText("0", 123, 57, GRAY);
 }
 
 void loop() {
@@ -162,28 +189,25 @@ void sense_breathing() {
   breathval = analogRead(breath);
   uint8_t samplepos = rhythm_addval(breathval);
   Serial.println(breathval);
-  tft.drawLine(samplepos, tft.height()-10,
-               samplepos, tft.height()-10-(breathval-rhythm_get_baseline())*0.5,
-               graph_col);
+  int val = (breathval-rhythm_get_baseline())*0.4;
+  if (val > 15) { val = 15; }
+  if (val < -14) { val = -14; }
+  tft.drawLine(samplepos, 81, samplepos, 81-val, graph_col);
    if (samplepos+1 < tft.width()) {
-     tft.drawLine(samplepos+1, tft.height(),
-                  samplepos+1, tft.height()-40,
-                  BLACK);
+     tft.drawLine(samplepos+1, 95, samplepos+1, 66, BLACK);
    } else {
-     tft.drawLine(0, tft.height(),
-                  0, tft.height()-40,
-                  BLACK);
+     tft.drawLine(0, 95, 0, 66, BLACK);
    }
 
-  tft.fillRect(0, 0 , 10*6, 7, BLACK);
-  sprintf(charBuf, "%i", breathval);
-  displayText(charBuf, 0, 0, WHITE);
+  // tft.fillRect(0, 0 , 10*6, 7, BLACK);
+  // sprintf(charBuf, "%i", breathval);
+  // displayText(charBuf, 0, 0, WHITE);
+  //
+  // sprintf(charBuf, "%i", rhythm_get_baseline());
+  // displayText(charBuf, 6*6, 0, MAGENTA);
 
-  sprintf(charBuf, "%i", rhythm_get_baseline());
-  displayText(charBuf, 6*6, 0, MAGENTA);
 
-
-  if (rhythm_oxygen(altitude_pct)) {
+  if (rhythm_oxygen(oxygen_pct)) {
     // displayText("*", 100, 0, BLUE);
     digitalWrite(valve, HIGH);
     graph_col = BLUE;
@@ -194,12 +218,12 @@ void sense_breathing() {
   }
 
   // display period
-  tft.drawLine(0, tft.height()-41, tft.width(), tft.height()-41, BLACK);
-  tft.drawLine(0, tft.height()-41, rhythm_get_period(), tft.height()-41, RED);
+  tft.drawLine(0, 65, tft.width(), 65, BLACK);
+  tft.drawLine(0, 65, rhythm_get_period(), 65, RED);
 
   // display phase
-  tft.drawLine(0, tft.height()-42, tft.width(), tft.height()-42, BLACK);
-  tft.drawLine(0, tft.height()-42, rhythm_get_phase(), tft.height()-42, CYAN);
+  tft.drawLine(0, 64, tft.width(), 64, BLACK);
+  tft.drawLine(0, 64, rhythm_get_phase(), 64, CYAN);
 
 }
 
@@ -231,9 +255,9 @@ void sense_altitude() {
       // reject
     }
 
-    tft.fillRect(0, 16 , 5*6, 23, BLACK);
-    sprintf(charBuf, "%im", altitude);
-    displayText(charBuf, 0, 16, WHITE);
+    // tft.fillRect(0, 16 , 5*6, 23, BLACK);
+    // sprintf(charBuf, "%im", altitude);
+    // displayText(charBuf, 0, 16, WHITE);
   } else {
     // Serial.println("Sensor error");
   }
