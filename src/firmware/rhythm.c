@@ -23,8 +23,8 @@ int buffer[RHYTHM_BUFFER_SIZE] = {0};
 uint8_t buffer_cursor = 0;
 
 #define RHYTHM_VALS_SIZE 4
-// #define RHYTHM_VALS_SMALL_DELTA 3
-#define RHYTHM_VALS_BIG_DELTA 100
+// #define RHYTHM_VALS_SMALL_DELTA 1
+#define RHYTHM_VALS_BIG_DELTA 50
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
@@ -46,9 +46,11 @@ uint8_t analyze_cursor = 0;
 uint8_t feature_analyze_cursor = 0;
 bool feature_triggerable = true;
 uint8_t sample_count = 0;
+int sample_count_valve_off = 0;
 float period_smoothed = 4000.0/RHYTHM_TEMPRES;  // start with 40 samples (4s)
 uint8_t phase_smpl = 0;
 float phase_pct = 0.0;  // current phase position in percent
+float duration_pct = 0.0;
 
 
 
@@ -79,11 +81,13 @@ uint8_t rhythm_addval(int val) {
 
 
 bool rhythm_oxygen(float dur_pct) {
+  duration_pct = dur_pct;
   compute_period_and_phase();
   if (phase_pct > RHYTHM_OFFSET_PCT
     && phase_pct < (RHYTHM_OFFSET_PCT + dur_pct*RHYTHM_INHALE_PCT)) {
     return true;
   } else {
+    sample_count_valve_off = sample_count;
     return false;
   }
 }
@@ -159,8 +163,10 @@ void compute_period_and_phase() {
     if (first_val+RHYTHM_FEATURE_SUCK > baseline
         && last_val+RHYTHM_FEATURE_SUCK < baseline
         && baseline_flat_dur < 6
+        // && sample_count > sample_count_valve_off+3
+        // && (sample_count/period_smoothed) > (RHYTHM_OFFSET_PCT + duration_pct*RHYTHM_INHALE_PCT)
         && feature_triggerable
-        && (first_val - last_val) < RHYTHM_VALS_BIG_DELTA
+        // && (first_val - last_val) < RHYTHM_VALS_BIG_DELTA
       ) {
       // found end of exhale
       feature_distances[feature_cursor] = sample_count;
@@ -168,7 +174,7 @@ void compute_period_and_phase() {
       feature_triggerable = false;
       if (++feature_cursor == RHYTHM_FEATURE_SIZE) { feature_cursor = 0; } // inc, wrap
     }
-    if (first_val < last_val) {
+    if (first_val < baseline && last_val > baseline && sample_count > 0.3*period_smoothed) {
       feature_triggerable = true;
     }
     // housekeeping
