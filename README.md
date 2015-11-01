@@ -3,7 +3,7 @@ WaveGlide Oxygen System
 
 This project is in **pre-Alpha** phase and is **not ready for use**.
 
-WaveGlide is an automatic electronic oxygen delivery system (EDS) for glider pilots. It prevents hypoxia at high altitudes by adding oxygen to the inhaled air. Unlike medical constant flow systems it pulses the oxygen supply at the beginning of the breathing cycle and automatically adapts oxygen levels to altitude.
+WaveGlide is an automatic oxygen delivery system for glider pilots. It prevents hypoxia at high altitudes by adding oxygen to the inhaled air. Unlike medical constant flow systems it pulses the oxygen supply at the beginning of the breathing cycle and automatically adapts oxygen levels to altitude.
 
 The pulsing allows for higher efficiency and consequently smaller oxygen cylinders. Typically a 1l cylinder is sufficient for one 8h flight. This works because the majority of air inhaled does not reach the [alveoli](https://en.wikipedia.org/wiki/Pulmonary_alveolus) and gets exhaled unused. The oxygen system therefore only oxygenates the inital air of every inhalation.
 
@@ -12,9 +12,9 @@ Altitude adapdation is crucial as well. The system compensatates for falling O<s
 
 Human Factors
 -------------
-[Hypoxia](https://en.wikipedia.org/wiki/Hypoxia_%28medical%29) is a signifficant risk factor in aviation. It affects pilots in adverse ways and the effects often go unnoticed -- *You feel great until it's too late*. Since hypoxia affects brain function et alii, all kinds of cognitive processes are less effective. Pilots tend to overlook slow running processes like weather changes, have reduced conditional readiness, generally lack creativity when dealing with unusual situations, have simplistic internal arguments, low level of suspicion, and reduced situational awareness.
+[Hypoxia](https://en.wikipedia.org/wiki/Hypoxia_%28medical%29) is a signifficant risk factor in aviation. It affects pilots in adverse ways and the effects often go unnoticed -- *You feel great until it's too late*. Since hypoxia affects brain function (et alii), all kinds of cognitive processes are less effective. Pilots tend to overlook slow running processes like weather changes, have reduced conditional readiness, generally lack creativity when dealing with unusual situations, have simplistic internal arguments, low level of suspicion, and reduced situational awareness.
 
-The negative effects gradually increase with altitude but are alleviated by the body's ability to compensate for reduced oxygen density. This compensation varies greatly between people. Canonically speaking the first noticable effect is reduced night vision at 1500m (5000'). From 2000m (6500') to 3800m (12500') the body can compensate lower oxygen availability. Above this altitude compensation ceases to be effective. Blood oxygen level continually go down and cause increasingly more adverse effects. For example, useful time of consciousness ([TUC](https://en.wikipedia.org/wiki/Hypoxia_%28medical%29)) in 4500m (15000') can be as low as 30 minutes. After this time, loss of consciousness is likely. In 7500m (25000') TUC is down to 4 minutes.
+The negative effects gradually increase with altitude but are alleviated by the body's ability to compensate for reduced oxygen density. This compensation varies greatly between people. Canonically speaking the first noticable effect is reduced night vision at 1500m (5000'). From 2000m (6500') to 3800m (12500') the body can compensate lower oxygen availability. Above this altitude compensation ceases to be effective. Blood oxygen level continually go down and cause increasingly more adverse effects. For example, useful time of consciousness ([TUC](https://en.wikipedia.org/wiki/Hypoxia_%28medical%29)) in 4500m (15000') can be as low as 30 minutes. After this time, loss of consciousness is not unusual. In 7500m (25000') TUC is down to 4 minutes.
 
 Many more factors skew these simple rules. Different people react differently and do so differently on different days.
 For a more nuanced treatise on the effects of hypoxia and some good arguments to oxygenate early, see [Nullhypoxie by Dr. med. Heini Schaffner](nullhypoxie.pdf).
@@ -32,7 +32,7 @@ How much Oxygen?
 
 The goal is to maintain **blood oxygen saturation above 90%**. This can be measured non-invasively through [pulse oxymetry](https://en.wikipedia.org/wiki/Pulse_oximetry). A pulse oxymeter is a fairly cheap device which measures ["sats"](https://en.wikipedia.org/wiki/Oxygen_saturation_%28medicine%29) (SpO<sub>2</sub>) through the skin. With these measurement we can then create a fitting default setting for base supply and altitude adaptation. Physiological differences are further handled by allowing the pilot to percentually  increase/decrease the supply.
 
-Some care has to be taken to get correct measurements. Reduced blood circulation, cold extremities, excessive ambient light, nail polish, and ill-fitting probes can all skew the measurement. According to the [Mountain High info video](https://www.youtube.com/watch?v=zin9hC4ym5I) reduced blood circulation in the fingers may cause a readings as low as 85% when saturation is actually in the 90s.
+Some care has to be taken to get correct measurements. Reduced blood circulation, cold extremities, excessive ambient light, nail polish, and ill-fitting probes can all skew the measurement.
 
 * [Pulse Oximetry at High Altitude.](http://www.ncbi.nlm.nih.gov/pubmed/21718156)
 * [Limitations in Using a Pulse Oximeter](http://www.amperordirect.com/pc/c-pulse-oximeter/z-pulse-oximeter-limitations.html)
