@@ -94,18 +94,29 @@ int temperature = 0;
 int altitude = 0;  // pressure alt (bases on 1013 hPa)
 float altitude_smoothed = 0;
 
+uint16_t last_sense_battery = 0;
+uint16_t last_sense_battery_dur = 0;
+// uint8_t bat_pct = 50;
+float bat_pct = 0.9;
+uint16_t bat_col = GREEN;
+
+#define METERS2FEET 3.28084
 #define OXYGEN_100PCT_ALTITUDE 10058  // FL330
 #define OXYGEN_MIN_PCT 0.1  // 0.0 to 1.0, typically 0.1 to 0.3
-int oxygen_start_alts[] = {1525, 3050, 3812, 4270}; // FL50, 100, 125, 140
+int oxygen_start_alts[] = {1524, 3048, 3810, 4267}; // FL50, 100, 125, 140
 float oxygen_pct = 0.0;
-// int oxygen_start_alt = 3812;
+// int oxygen_start_alt = 3810;
 int oxygen_start_alt = 0;
 
-int buttonState = 0;
+volatile int button_state = LOW;
+volatile bool button_flag = false;
+volatile uint16_t last_button = 0;
+volatile uint16_t last_button_dur = 0;
+uint8_t adj_setting = 2;
+
+
 char charBuf[50];
 
-uint8_t bat_pct = 50;
-uint16_t bat_col = GREEN;
 
 
 // Option 1: use any pins but a little slower
@@ -121,11 +132,23 @@ Adafruit_SSD1351 tft = Adafruit_SSD1351(cs, dc, rst);
 Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 
 
+void buttonISR() {
+    button_state = !button_state;
+    last_button_dur = millis()-last_button;
+    if (last_button_dur > 30) {  // ignore bounces
+      if (button_state) {
+        button_flag = true;
+      }
+    }
+    last_button = millis();
+}
+
 
 void setup(void) {
   analogReference(EXTERNAL);
   pinMode(breath, INPUT);
   pinMode(button, INPUT_PULLUP);
+  attachInterrupt(digitalPinToInterrupt(button), buttonISR, CHANGE);
   pinMode(valve, OUTPUT);
   pinMode(buzzer, OUTPUT);
   pinMode(battery, INPUT);
@@ -170,11 +193,9 @@ void setup(void) {
   displayText("330", 110, 0, GRAY);
 
   displayText("ADJ", 12, 21, GRAY);
-  tft.fillRect(35, 20, 13, 10, GRAY);
-  tft.fillRect(49, 20, 9, 10, GRAY);
+  adj_draw_rects();
   tft.fillRect(59, 20, 10, 10, RED);
-  tft.fillRect(70, 20, 10, 10, GRAY);
-  tft.fillRect(81, 20, 12, 10, GRAY);
+  adj_draw_symbols();
 
   displayText("O2", 16, 36, GRAY);
   tft.fillRect(56, 36, 37, 7, CYAN);
@@ -205,10 +226,21 @@ void loop() {
   }
 
   last_sense_altitude_dur = millis()-last_sense_altitude;
-  if (last_sense_altitude_dur > RHYTHM_TEMPRES*10) {
+  if (last_sense_altitude_dur > RHYTHM_TEMPRES*20) {
     sense_altitude();
-    sense_battery();
     last_sense_altitude = millis();
+  }
+
+  last_sense_battery_dur = millis()-last_sense_battery;
+  if (last_sense_battery_dur > RHYTHM_TEMPRES*30) {
+    sense_battery();
+    last_sense_battery = millis();
+  }
+
+  // handle button
+  if (button_flag) {
+    handle_button();
+    button_flag = false;
   }
 
 }
@@ -220,7 +252,7 @@ void sense_breathing() {
   uint8_t samplepos = rhythm_addval(breathval);
   // Serial.println(breathval);
   int val = (breathval-rhythm_get_baseline())*0.4;
-  if (val > 15) { val = 15; }
+  if (val > 14) { val = 14; }
   if (val < -14) { val = -14; }
   tft.drawLine(samplepos, 79, samplepos, 79-val, graph_col);
    if (samplepos+1 < tft.width()) {
@@ -270,6 +302,10 @@ void sense_altitude() {
     float temp;
     bmp.getTemperature(&temp);
     temperature = round(temp);
+    // print numeral
+    sprintf(charBuf, "%i", temperature);
+    tft.fillRect(97, 57, 12, 7, BLACK);
+    displayText(charBuf, 97, 57, GRAY);
     // Serial.print("Temperature: ");
     // Serial.print(temp);
     // Serial.println(" C");
@@ -285,7 +321,12 @@ void sense_altitude() {
     } else {
       // reject
     }
-
+    // print numeral, flight level, in feet, /100, rounded to nearest 500
+    sprintf(charBuf, "%03i", (round((altitude_smoothed * METERS2FEET)/500) * 5));
+    tft.fillRect(59, 49, 36, 14, BLACK);
+    tft.setTextSize(2);
+    displayText(charBuf, 59, 49, WHITE);
+    tft.setTextSize(1);
     // tft.fillRect(0, 16 , 5*6, 23, BLACK);
     // sprintf(charBuf, "%im", altitude);
     // displayText(charBuf, 0, 16, WHITE);
@@ -300,28 +341,103 @@ void sense_battery() {
   // 3.2V low-battery, map this to 0
   // 3.7 to max
   float batvolts = analogRead(battery) * (5.04/1023.0); // map to 0-5.09
+  float newbat_pct = 0.0;
   if (batvolts <= 3.2) {
-    bat_pct = 0;
+    newbat_pct = 0.0;
   } else if (batvolts >= 4.1) {
-    bat_pct = 100;
+    newbat_pct = 1.0;
   } else {
-    bat_pct = (batvolts - 3.2) * 111;  // * 100/(4.1-3.2)
+    newbat_pct = (batvolts - 3.2) * 1.11;  // * 1/(4.1-3.2)
   }
+  // smooth in
+  bat_pct = 0.8*bat_pct + 0.2*newbat_pct;
   // color
-  if (bat_pct > 40) {
+  if (bat_pct > 0.4) {
     bat_col = GREEN;
-  } else if (bat_pct > 15) {
+  } else if (bat_pct > 0.2) {
     bat_col = ORANGE;
   } else {
     bat_col = RED;
   }
-  // print
-  sprintf(charBuf, "%03i", bat_pct);
-  tft.fillRect(95, 21, 6*4, 7, BLACK);
-  displayText(charBuf, 95, 21, bat_col);
-  displayText("%", 95+18, 21, bat_col);
+  // print numeral
+  // sprintf(charBuf, "%03i", round(bat_pct*100));
+  // tft.fillRect(95, 21, 6*4, 7, BLACK);
+  // displayText(charBuf, 95, 21, bat_col);
+  // displayText("%", 95+18, 21, bat_col);
+
+  // print symbol
+  tft.fillRect(101, 20, 10, 23, BLACK);
+  // outline
+  tft.drawLine(101, 21, 110, 21, bat_col);
+  tft.drawLine(104, 19, 107, 19, bat_col);
+  tft.drawLine(104, 20, 107, 20, bat_col);
+  tft.drawLine(110, 22, 110, 41, bat_col);
+  tft.drawLine(110, 42, 101, 42, bat_col);
+  tft.drawLine(101, 41, 101, 22, bat_col);
+  // charge level
+  uint8_t level = round(bat_pct*20);
+  tft.fillRect(102, 42-level, 8, level, bat_col);
 }
 
+
+void handle_button() {
+  adj_setting++;
+  if (adj_setting >= 5) { adj_setting = 0; }
+  // draw
+  if (adj_setting == 0) {
+    adj_draw_rects();
+    tft.fillRect(35, 20, 13, 10, RED);
+    adj_draw_symbols();
+  } else if (adj_setting == 1) {
+    adj_draw_rects();
+    tft.fillRect(49, 20, 9, 10, RED);
+    adj_draw_symbols();
+  } else if (adj_setting == 2) {
+    adj_draw_rects();
+    tft.fillRect(59, 20, 10, 10, RED);
+    adj_draw_symbols();
+  } else if (adj_setting == 3) {
+    adj_draw_rects();
+    tft.fillRect(70, 20, 10, 10, RED);
+    adj_draw_symbols();
+  } else if (adj_setting == 4) {
+    adj_draw_rects();
+    tft.fillRect(81, 20, 12, 10, RED);
+    adj_draw_symbols();
+  }
+}
+
+void adj_draw_rects() {
+  tft.fillRect(35, 20, 13, 10, GRAY);
+  tft.fillRect(49, 20, 9, 10, GRAY);
+  tft.fillRect(59, 20, 10, 10, GRAY);
+  tft.fillRect(70, 20, 10, 10, GRAY);
+  tft.fillRect(81, 20, 12, 10, GRAY);
+}
+
+void adj_draw_symbols() {
+  // 0
+  tft.fillRect(37, 24, 4, 2, BLACK);
+  tft.fillRect(42, 24, 4, 2, BLACK);
+  // 1
+  tft.fillRect(51, 24, 4, 2, BLACK);
+  // 2
+  tft.fillRect(61, 24, 6, 2, BLACK);
+  tft.drawLine(62, 23, 65, 23, BLACK);
+  tft.drawLine(62, 26, 65, 26, BLACK);
+  tft.drawLine(63, 22, 64, 22, BLACK);
+  tft.drawLine(63, 27, 64, 27, BLACK);
+  // 3
+  tft.fillRect(72, 24, 6, 2, BLACK);
+  tft.fillRect(74, 22, 2, 2, BLACK);
+  tft.fillRect(74, 26, 2, 2, BLACK);
+  // 4
+  tft.fillRect(82, 24, 10, 2, BLACK);
+  tft.fillRect(84, 22, 2, 2, BLACK);
+  tft.fillRect(88, 22, 2, 2, BLACK);
+  tft.fillRect(84, 26, 2, 2, BLACK);
+  tft.fillRect(88, 26, 2, 2, BLACK);
+}
 
 void set_oxygen_pct(float alt) {
   // set a oxygen percentaged based on altitude, linearly
