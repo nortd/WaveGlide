@@ -100,12 +100,11 @@ int oxygen_pct = 0;
 
 #define BUTTON_LONG_DUR 2000  // 2s
 volatile bool button_short_handled = true;
-volatile bool button_long_handled = true;
 volatile uint16_t last_button = 0;
-volatile bool state = LOW;
+volatile uint16_t last_button_dur = 0;
 // adjustment percentages, applied to oxygen_pct
 float adj_pcts[] = {0.5, 0.8, 1.0, 1.3, 2.0};  // CAREFUL: length 5 expected
-uint8_t adj_setting = 2;
+uint8_t adj_setting = 1;  // will be 2 after registering interrupt
 
 
 char charBuf[50];
@@ -118,19 +117,12 @@ Adafruit_SSD1351 tft = Adafruit_SSD1351(cs, dc, rst);
 Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 
 
-void buttonISR() {
-  state = !state;
-  uint16_t last_button_dur = millis()-last_button;
-  if (state) {  // release
-    if (last_button_dur < BUTTON_LONG_DUR && last_button_dur > 40) {
-    // if (digitalRead(button)) {  // release
-    // if (last_button_dur < BUTTON_LONG_DUR) {
-      // short press (but not a bounce)
-      button_short_handled = false;
-    }
-    button_long_handled = false;  // reset
-  }
+void onButtonRelease() {
+  last_button_dur = millis()-last_button;
   last_button = millis();
+  if (last_button_dur > 120) {  // filter bounces
+    button_short_handled = false;
+  }
 }
 
 
@@ -138,16 +130,22 @@ void setup(void) {
   analogReference(EXTERNAL);
   pinMode(breath, INPUT);
   pinMode(button, INPUT_PULLUP);
-  attachInterrupt(digitalPinToInterrupt(button), buttonISR, CHANGE);
   pinMode(valve, OUTPUT);
   pinMode(buzzer, OUTPUT);
   pinMode(battery, INPUT);
   // analogWrite(buzzer, 150);
 
+  // check for button held during power up
+  bool button_held = false;
+  if (!digitalRead(button)) { // pressed
+    button_held = true;
+  }
+
   // Serial.begin(9600);
   // Serial.println("init");
   tft.begin();
   //tft.setRotation(1);  // 1: 90 clockwise, 2: 180, 3: 270
+  tft.fillScreen(BLACK);
 
   /* Initialise the barometric sensor */
   if(!bmp.begin())
@@ -157,21 +155,9 @@ void setup(void) {
     while(1);
   }
 
-  uint16_t time = millis();
-  tft.fillRect(0, 0, 128, 96, BLACK);
-  time = millis() - time;
-
-  // Serial.println(time, DEC);
+  testtriangles();
   delay(500);
-
-  lcdTestPattern();
-  delay(500);
-  tft.invert(true);
-  delay(100);
-  tft.invert(false);
-  delay(100);
-
-  // init display
+  // tft.invert(true);
   tft.fillScreen(BLACK);
 
   displayText("START", 31, 4, DARKBLUE);
@@ -201,6 +187,12 @@ void setup(void) {
   tft.drawPixel(111, 42, DARKBLUE);
   tft.drawPixel(113, 42, DARKBLUE);
   displayText("0", 123, 57, DARKBLUE);
+
+  if (button_held) {
+    handle_long_button();
+  }
+  // enable button interrupt
+  attachInterrupt(digitalPinToInterrupt(button), onButtonRelease, RISING);
 }
 
 void loop() {
@@ -226,19 +218,9 @@ void loop() {
   }
 
   // handle short button press
-  state = digitalRead(button);
   if (!button_short_handled) {
     handle_short_button();
     button_short_handled = true;
-  }
-  // handle long button press
-  // noInterrupts();
-  uint16_t dur = millis()-last_button;
-  bool handle = !digitalRead(button) && !button_long_handled && dur > BUTTON_LONG_DUR;
-  // interrupts();
-  if (handle) {
-    handle_long_button();
-    button_long_handled = true;
   }
 }
 
@@ -504,6 +486,23 @@ void displayText(char *text, int16_t x, int16_t y, uint16_t color) {
 }
 
 
+
+void testtriangles() {
+  tft.fillScreen(BLACK);
+  int color = 0xF800;
+  int t;
+  int w = tft.width()/2;
+  int x = tft.height();
+  int y = 0;
+  int z = tft.width();
+  for(t = 0 ; t <= 15; t+=1) {
+    tft.drawTriangle(w, y, y, x, z, x, color);
+    x-=4;
+    y+=4;
+    z-=4;
+    color+=100;
+  }
+}
 
 void lcdTestPattern(void)
 {
