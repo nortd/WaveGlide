@@ -80,11 +80,11 @@ uint8_t rhythm_addval(int val) {
 }
 
 
-bool rhythm_oxygen(float dur_pct) {
-  duration_pct = dur_pct;
+bool rhythm_oxygen(int dur_pct) {
+  duration_pct = dur_pct/100.0;
   compute_period_and_phase();
   if (phase_pct > RHYTHM_OFFSET_PCT
-    && phase_pct < (RHYTHM_OFFSET_PCT + dur_pct*RHYTHM_INHALE_PCT)) {
+    && phase_pct < (RHYTHM_OFFSET_PCT + duration_pct*RHYTHM_INHALE_PCT)) {
     return true;
   } else {
     sample_count_valve_off = sample_count;
