@@ -102,6 +102,7 @@ int oxygen_pct = 0;
 volatile bool button_short_handled = true;
 volatile uint16_t last_button = 0;
 volatile uint16_t last_button_dur = 0;
+bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
 float adj_pcts[] = {0.5, 0.8, 1.0, 1.3, 2.0};  // CAREFUL: length 5 expected
 uint8_t adj_setting = 1;  // will be 2 after registering interrupt
@@ -117,10 +118,11 @@ Adafruit_SSD1351 tft = Adafruit_SSD1351(cs, dc, rst);
 Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 
 
-void onButtonRelease() {
+void onButton() {
+  state = !state;
   last_button_dur = millis()-last_button;
   last_button = millis();
-  if (last_button_dur > 120) {  // filter bounces
+  if (state && last_button_dur > 40) {  // filter bounces
     button_short_handled = false;
   }
 }
@@ -192,7 +194,7 @@ void setup(void) {
     handle_long_button();
   }
   // enable button interrupt
-  attachInterrupt(digitalPinToInterrupt(button), onButtonRelease, RISING);
+  attachInterrupt(digitalPinToInterrupt(button), onButton, CHANGE);
 }
 
 void loop() {
