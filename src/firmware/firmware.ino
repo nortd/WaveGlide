@@ -107,8 +107,10 @@ bool state = LOW;
 float adj_pcts[] = {0.8, 1.0, 1.3, 2.0, 100.0};  // CAREFUL: length 5 expected
 uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 
-
 char charBuf[50];
+
+#define SAMPLES_GRAPH_WIDTH 128
+uint8_t samplepos = 0;
 
 
 // display via SPI
@@ -200,9 +202,6 @@ void setup(void) {
 void loop() {
   last_sense_breathing_dur = millis()-last_sense_breathing;
   if (last_sense_breathing_dur > RHYTHM_TEMPRES) {
-    // tft.fillRect(6, 32, 4*6, 32, BLACK);
-    // sprintf(charBuf, "[%i]", last_sense_breathing_dur);
-    // displayText(charBuf, 6, 32, WHITE);
     sense_breathing();
     last_sense_breathing = millis();
   }
@@ -229,19 +228,29 @@ void loop() {
 
 
 void sense_breathing() {
+  // debug
+  if (no_feature_dedection()) {
+    tft.fillRect(126, 94, 2, 2, RED);
+  } else {
+    tft.fillRect(126, 94, 2, 2, BLUE);
+  }
+
+
   breathval = analogRead(breath);
-  uint8_t samplepos = rhythm_addval(breathval);
+  rhythm_addval(breathval);
   // Serial.println(breathval);
   int val = (breathval-rhythm_get_baseline())*0.4;
   if (val > 14) { val = 14; }
   if (val < -14) { val = -14; }
   if (!baseline_set()) { graph_col = DARKBLUE; }
   tft.drawLine(samplepos, 79, samplepos, 79-val, graph_col);
-   if (samplepos+1 < tft.width()) {
-     tft.drawLine(samplepos+1, 93, samplepos+1, 64, BLACK);
-   } else {
-     tft.drawLine(0, 93, 0, 64, BLACK);
-   }
+  if (samplepos+1 < tft.width()) {
+   tft.drawLine(samplepos+1, 93, samplepos+1, 64, BLACK);
+  } else {
+   tft.drawLine(0, 93, 0, 64, BLACK);
+  }
+  if (++samplepos == SAMPLES_GRAPH_WIDTH) { samplepos = 0; } // inc, wrap
+
 
   // tft.fillRect(0, 0 , 10*6, 7, BLACK);
   // sprintf(charBuf, "%i", breathval);
@@ -252,12 +261,10 @@ void sense_breathing() {
 
 
   if (rhythm_oxygen(oxygen_pct)) {
-    // displayText("*", 100, 0, BLUE);
     digitalWrite(valve, HIGH);
     graph_col = BLUE;
   } else {
     digitalWrite(valve, LOW);
-    // tft.fillRect(100, 0 , 105, 7, BLACK);
     graph_col = WHITE;
   }
 

@@ -21,12 +21,13 @@
 
 // void rhythm_init();
 
-uint8_t rhythm_addval(int val);
+void rhythm_addval(int val);
 bool rhythm_oxygen(int dur_pct);
-int rhythm_get_baseline();
 uint8_t rhythm_get_period();
 uint8_t rhythm_get_phase();
 bool baseline_set();
+int rhythm_get_baseline();
 
+bool no_feature_dedection();
 
 #endif
