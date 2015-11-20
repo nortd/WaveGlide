@@ -104,7 +104,7 @@ volatile uint16_t last_button = 0;
 volatile uint16_t last_button_dur = 0;
 bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
-float adj_pcts[] = {0.8, 1.0, 1.3, 2.0, 100.0};  // CAREFUL: length 5 expected
+float adj_pcts[] = {0.5, 1.0, 1.5, 2.0, 100.0};  // CAREFUL: length 5 expected
 uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 
 char charBuf[50];
@@ -228,14 +228,6 @@ void loop() {
 
 
 void sense_breathing() {
-  // debug
-  if (no_feature_dedection()) {
-    tft.fillRect(126, 94, 2, 2, RED);
-  } else {
-    tft.fillRect(126, 94, 2, 2, BLUE);
-  }
-
-
   breathval = analogRead(breath);
   rhythm_addval(breathval);
   // Serial.println(breathval);

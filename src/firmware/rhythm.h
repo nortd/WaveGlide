@@ -28,6 +28,4 @@ uint8_t rhythm_get_phase();
 bool baseline_set();
 int rhythm_get_baseline();
 
-bool no_feature_dedection();
-
 #endif

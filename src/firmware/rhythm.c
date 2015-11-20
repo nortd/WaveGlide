@@ -24,27 +24,23 @@
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
-#define RHYTHM_BASELINE_TOL 2
+#define RHYTHM_BASELINE_TOL 3
 #define RHYTHM_BASELINE_DUR 1000/RHYTHM_TEMPRES  // dur for new baseline, 1s
+#define RHYTHM_OFFLINE_DUR 4000/RHYTHM_TEMPRES   // time considered as canula off event
 int baseline = 512;  // baseline sensor read (when not breathing)
 int baseline_ref = 512;
 bool baseline_ref_set = false;
 uint16_t baseline_flat_dur = 0;
+uint16_t baseline_flat_dur_prev = 0;
 
 #define RHYTHM_OFFSET_PCT 0.0    // trigger feature to inhalation start pct
-#define RHYTHM_INHALE_PCT 0.3    // period percentage useful for oxygenation
-#define RHYTHM_FEATURE_SIZE 32
+#define RHYTHM_INHALE_PCT 0.4    // period percentage useful for oxygenation
 #define RHYTHM_FEATURE_SUCK 3
 // #define RHYTHM_PERIOD_MIN 1000.0/RHYTHM_TEMPRES  // 1s, must not be 0 because /0
 // #define RHYTHM_PERIOD_MAX 8000.0/RHYTHM_TEMPRES  // 8s
-#define RHYTHM_COUNT_MAX 128
-#define RHYTHM_OXYGEN_OFF_DELAY 10000
 uint8_t sample_count = 0;
-bool feature_dedection_deactivated = false;
+uint8_t rhythm_count_max = 20;  // 2s
 uint8_t feature_dedection_countdown = 0;
-unsigned long oxygen_off_time = 0;
-unsigned long oxygen_off_delay = 0;
-bool oxygen_last = false;
 float period_smoothed = 4000.0/RHYTHM_TEMPRES;  // start with 40 samples (4s)
 uint8_t phase_smpl = 0;
 float phase_pct = 0.0;  // current phase position in percent
@@ -58,6 +54,7 @@ void rhythm_addval(int val) {
   // check for flat baseline
   if (val <= (baseline_ref + RHYTHM_BASELINE_TOL)
       && val >= (baseline_ref - RHYTHM_BASELINE_TOL)) {
+    baseline_flat_dur_prev = baseline_flat_dur;
     baseline_flat_dur++;
     if (!baseline_ref_set && baseline_flat_dur == RHYTHM_BASELINE_DUR) {
       // got new baseline
@@ -65,15 +62,10 @@ void rhythm_addval(int val) {
       baseline_ref_set = true;
     }
   } else {
+    baseline_flat_dur_prev = baseline_flat_dur;
     baseline_flat_dur = 0;
     baseline_ref = val;
   }
-
-  // handle delay after oxygen burst
-  // oxygen_off_delay = millis()-oxygen_off_time;
-  // if (oxygen_off_delay > RHYTHM_OXYGEN_OFF_DELAY) {
-  //   feature_dedection_deactivated = false;
-  // }
 
   // add val to vals
   vals[vals_cursor] = val;
@@ -98,26 +90,27 @@ void rhythm_addval(int val) {
   } while (k != vals_cursor);
 
   // check for period feature
-  // if ((first_val - last_val) > RHYTHM_VALS_BIG_DELTA
-  //     && small_delta_ok_num == RHYTHM_VALS_SIZE - 1
-  //     && sample_count > 0.5*period_smoothed)
-  if (feature_dedection_countdown > 4
+  if (baseline_ref_set
+      && feature_dedection_countdown > RHYTHM_VALS_SIZE
       && first_val+RHYTHM_FEATURE_SUCK > baseline
       && last_val+RHYTHM_FEATURE_SUCK < baseline
-      && baseline_flat_dur < 6
-      // && sample_count > sample_count_oxygen_off+3
-      // && (sample_count/period_smoothed) > (RHYTHM_OFFSET_PCT + duration_pct*RHYTHM_INHALE_PCT)
-      // && (first_val - last_val) < RHYTHM_VALS_BIG_DELTA
+      && baseline_flat_dur_prev < 6
     ) {
     // found end of exhale
     // period_smoothed = 0.8*period_smoothed + 0.2*sample_count;  // smooth a bit
     period_smoothed = sample_count;
+    rhythm_count_max = 2*sample_count;  // only increase after first feature
     sample_count = 0;
+    feature_dedection_countdown = 0;
   }
 
   // housekeeping
-  if (sample_count < RHYTHM_COUNT_MAX) { // cap phase
+  if (sample_count < rhythm_count_max) { // cap phase
     sample_count++;  // inc for every buffer entry
+  }
+
+  if (baseline_flat_dur > RHYTHM_OFFLINE_DUR) {
+    rhythm_count_max = 20;
   }
 
   // phase
@@ -129,21 +122,13 @@ void rhythm_addval(int val) {
 
 bool rhythm_oxygen(int dur_pct) {
   duration_pct = dur_pct/100.0;
-  if (phase_pct >= RHYTHM_OFFSET_PCT
+  if (baseline_ref_set
+    && phase_pct >= RHYTHM_OFFSET_PCT
     && phase_pct < (RHYTHM_OFFSET_PCT + duration_pct*RHYTHM_INHALE_PCT)) {
     // oxygenation phase
-    // feature_dedection_deactivated = true;
-    feature_dedection_countdown = 0;
-    // oxygen_last = true;
     return true;
   } else {
     feature_dedection_countdown++;
-    // // non-oxygenation phase
-    // if (oxygen_last) {
-    //   // oxygen_off_time = millis();
-    //
-    // }
-    // oxygen_last = false;
     return false;
   }
 }
@@ -164,8 +149,4 @@ bool baseline_set() {
 
 int rhythm_get_baseline() {
   return baseline;
-}
-
-bool no_feature_dedection() {
-  return feature_dedection_deactivated;
 }
