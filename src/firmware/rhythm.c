@@ -19,8 +19,6 @@
 
 
 #define RHYTHM_VALS_SIZE 4
-// #define RHYTHM_VALS_SMALL_DELTA 1
-#define RHYTHM_VALS_BIG_DELTA 50
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
@@ -36,11 +34,10 @@ uint16_t baseline_flat_dur_prev = 0;
 #define RHYTHM_OFFSET_PCT 0.0    // trigger feature to inhalation start pct
 #define RHYTHM_INHALE_PCT 0.4    // period percentage useful for oxygenation
 #define RHYTHM_FEATURE_SUCK 3
-// #define RHYTHM_PERIOD_MIN 1000.0/RHYTHM_TEMPRES  // 1s, must not be 0 because /0
-// #define RHYTHM_PERIOD_MAX 8000.0/RHYTHM_TEMPRES  // 8s
+#define RHYTHM_COUNT_DEFAULT 20  // 2s
 uint8_t sample_count = 0;
-uint8_t rhythm_count_max = 20;  // 2s
-uint8_t feature_dedection_countdown = 0;
+uint8_t rhythm_count_max = RHYTHM_COUNT_DEFAULT;
+uint8_t feature_dedection_delayer = 0;
 float period_smoothed = 4000.0/RHYTHM_TEMPRES;  // start with 40 samples (4s)
 uint8_t phase_smpl = 0;
 float phase_pct = 0.0;  // current phase position in percent
@@ -74,16 +71,11 @@ void rhythm_addval(int val) {
   // analyze vals, starting with oldest
   int first_val = 0;
   int last_val = 0;
-  // uint8_t small_delta_ok_num = 0;
   uint8_t k = vals_cursor;
   do {
     if (k == vals_cursor) { // first run
       first_val = vals[k];
     } else {               // not first run
-      // // small delta check
-      // if (abs(last_val - vals[k]) < RHYTHM_VALS_SMALL_DELTA) {
-      //   small_delta_ok_num++;
-      // }
     }
     last_val = vals[k];
     if (++k == RHYTHM_VALS_SIZE) { k = 0; } // inc, wrap
@@ -91,7 +83,7 @@ void rhythm_addval(int val) {
 
   // check for period feature
   if (baseline_ref_set
-      && feature_dedection_countdown > RHYTHM_VALS_SIZE
+      && feature_dedection_delayer > RHYTHM_VALS_SIZE
       && first_val+RHYTHM_FEATURE_SUCK > baseline
       && last_val+RHYTHM_FEATURE_SUCK < baseline
       && baseline_flat_dur_prev < 6
@@ -101,7 +93,7 @@ void rhythm_addval(int val) {
     period_smoothed = sample_count;
     rhythm_count_max = 2*sample_count;  // only increase after first feature
     sample_count = 0;
-    feature_dedection_countdown = 0;
+    feature_dedection_delayer = 0;
   }
 
   // housekeeping
@@ -110,7 +102,7 @@ void rhythm_addval(int val) {
   }
 
   if (baseline_flat_dur > RHYTHM_OFFLINE_DUR) {
-    rhythm_count_max = 20;
+    rhythm_count_max = RHYTHM_COUNT_DEFAULT;
   }
 
   // phase
@@ -128,7 +120,7 @@ bool rhythm_oxygen(int dur_pct) {
     // oxygenation phase
     return true;
   } else {
-    feature_dedection_countdown++;
+    feature_dedection_delayer++;
     return false;
   }
 }

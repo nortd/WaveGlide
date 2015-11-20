@@ -73,8 +73,6 @@ extern "C" {
 uint16_t last_sense_breathing = 0;
 uint16_t last_sense_breathing_dur = 0;
 int breathval = 0;
-int breathval_prev = 1023;
-bool oxy_on = false;
 uint16_t graph_col = WHITE;
 
 uint16_t last_sense_altitude = 0;
@@ -98,7 +96,6 @@ int oxygen_start_alts[] = {0, 3810}; // FL0, FL125, CAREFUL: length 2 expected
 uint8_t alt_setting = 0;  // used as index in above arrays
 int oxygen_pct = 0;
 
-#define BUTTON_LONG_DUR 2000  // 2s
 volatile bool button_short_handled = true;
 volatile uint16_t last_button = 0;
 volatile uint16_t last_button_dur = 0;
@@ -243,15 +240,6 @@ void sense_breathing() {
   }
   if (++samplepos == SAMPLES_GRAPH_WIDTH) { samplepos = 0; } // inc, wrap
 
-
-  // tft.fillRect(0, 0 , 10*6, 7, BLACK);
-  // sprintf(charBuf, "%i", breathval);
-  // displayText(charBuf, 0, 0, WHITE);
-  //
-  // sprintf(charBuf, "%i", rhythm_get_baseline());
-  // displayText(charBuf, 6*6, 0, MAGENTA);
-
-
   if (rhythm_oxygen(oxygen_pct)) {
     digitalWrite(valve, HIGH);
     graph_col = BLUE;
@@ -327,10 +315,7 @@ void set_oxygen_pct(float alt) {
     // set a oxygen percentaged based on altitude, linearly
     if (alt > oxygen_start_alts[alt_setting]) {
       if (alt < OXYGEN_100PCT_ALTITUDE) {
-        // map oxygen_start_alts[alt_setting]:OXYGEN_100PCT_ALTITUDE -> OXYGEN_MIN_PCT:1.0
         oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100);
-        // oxygen_pct = (1.0-OXYGEN_MIN_PCT)*(alt-oxygen_start_alts[alt_setting])
-                  //  /(OXYGEN_100PCT_ALTITUDE - oxygen_start_alts[alt_setting]) + OXYGEN_MIN_PCT;
       } else {
         oxygen_pct = 100; // 100%
       }
