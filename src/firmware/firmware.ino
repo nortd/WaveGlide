@@ -104,8 +104,8 @@ volatile uint16_t last_button = 0;
 volatile uint16_t last_button_dur = 0;
 bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
-float adj_pcts[] = {0.5, 0.8, 1.0, 1.3, 2.0};  // CAREFUL: length 5 expected
-uint8_t adj_setting = 1;  // will be 2 after registering interrupt
+float adj_pcts[] = {0.8, 1.0, 1.3, 2.0, 100.0};  // CAREFUL: length 5 expected
+uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 
 
 char charBuf[50];
@@ -169,10 +169,10 @@ void setup(void) {
   displayText("330", 110, 0, DARKBLUE);
 
   adj_draw_rects();
-  tft.fillRect(52, 16, 16, 14, RED);
+  tft.fillRect(26, 16, 14, 14, GREEN);
   adj_draw_symbols();
 
-  displayText("O2", 16, 36, DARKBLUE);
+  displayText("O2", 11, 36, DARKBLUE);
   tft.fillRect(56, 36, 37, 7, CYAN);
   displayText("100%", 28, 36, WHITE);
 
@@ -235,6 +235,7 @@ void sense_breathing() {
   int val = (breathval-rhythm_get_baseline())*0.4;
   if (val > 14) { val = 14; }
   if (val < -14) { val = -14; }
+  if (!baseline_set()) { graph_col = DARKBLUE; }
   tft.drawLine(samplepos, 79, samplepos, 79-val, graph_col);
    if (samplepos+1 < tft.width()) {
      tft.drawLine(samplepos+1, 93, samplepos+1, 64, BLACK);
@@ -321,22 +322,26 @@ void sense_altitude() {
 }
 
 void set_oxygen_pct(float alt) {
-  // set a oxygen percentaged based on altitude, linearly
-  if (alt > oxygen_start_alts[alt_setting]) {
-    if (alt < OXYGEN_100PCT_ALTITUDE) {
-      // map oxygen_start_alts[alt_setting]:OXYGEN_100PCT_ALTITUDE -> OXYGEN_MIN_PCT:1.0
-      oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100);
-      // oxygen_pct = (1.0-OXYGEN_MIN_PCT)*(alt-oxygen_start_alts[alt_setting])
-                //  /(OXYGEN_100PCT_ALTITUDE - oxygen_start_alts[alt_setting]) + OXYGEN_MIN_PCT;
-    } else {
-      oxygen_pct = 100; // 100%
-    }
+  if (adj_setting == 4) {  // max setting -> 100%
+    oxygen_pct = 100;
   } else {
-    oxygen_pct = 0; // 0%, below start altitude
+    // set a oxygen percentaged based on altitude, linearly
+    if (alt > oxygen_start_alts[alt_setting]) {
+      if (alt < OXYGEN_100PCT_ALTITUDE) {
+        // map oxygen_start_alts[alt_setting]:OXYGEN_100PCT_ALTITUDE -> OXYGEN_MIN_PCT:1.0
+        oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100);
+        // oxygen_pct = (1.0-OXYGEN_MIN_PCT)*(alt-oxygen_start_alts[alt_setting])
+                  //  /(OXYGEN_100PCT_ALTITUDE - oxygen_start_alts[alt_setting]) + OXYGEN_MIN_PCT;
+      } else {
+        oxygen_pct = 100; // 100%
+      }
+    } else {
+      oxygen_pct = 0; // 0%, below start altitude
+    }
+    // apply adjustement setting
+    oxygen_pct = oxygen_pct * adj_pcts[adj_setting];
+    oxygen_pct = constrain(oxygen_pct, 0, 100);
   }
-  // apply adjustement setting
-  oxygen_pct = oxygen_pct * adj_pcts[adj_setting];
-  oxygen_pct = constrain(oxygen_pct, 0, 100);
   // Display
   tft.fillRect(28, 36, 18, 7, BLACK);
   int pctwidth = map(oxygen_pct, 0, 100, 0, 35);
@@ -369,9 +374,9 @@ void sense_battery() {
   // smooth in
   bat_pct = 0.8*bat_pct + 0.2*newbat_pct;
   // color
-  if (bat_pct > 0.4) {
+  if (bat_pct > 0.5) {
     bat_col = GREEN;
-  } else if (bat_pct > 0.2) {
+  } else if (bat_pct > 0.3) {
     bat_col = ORANGE;
   } else {
     bat_col = RED;
@@ -402,23 +407,23 @@ void handle_short_button() {
   // draw
   if (adj_setting == 0) {
     adj_draw_rects();
-    tft.fillRect(8, 16, 24, 14, RED);
+    tft.fillRect(10, 16, 14, 14, WHITE);
     adj_draw_symbols();
   } else if (adj_setting == 1) {
     adj_draw_rects();
-    tft.fillRect(34, 16, 16, 14, RED);
+    tft.fillRect(26, 16, 14, 14, GREEN);
     adj_draw_symbols();
   } else if (adj_setting == 2) {
     adj_draw_rects();
-    tft.fillRect(52, 16, 16, 14, RED);
+    tft.fillRect(42, 16, 14, 14, WHITE);
     adj_draw_symbols();
   } else if (adj_setting == 3) {
     adj_draw_rects();
-    tft.fillRect(70, 16, 16, 14, RED);
+    tft.fillRect(58, 16, 23, 14, WHITE);
     adj_draw_symbols();
   } else if (adj_setting == 4) {
     adj_draw_rects();
-    tft.fillRect(88, 16, 28, 14, RED);
+    tft.fillRect(83, 16, 29, 14, RED);
     adj_draw_symbols();
   }
   // update oxygen_pct
@@ -426,38 +431,64 @@ void handle_short_button() {
 }
 
 void adj_draw_rects() {
-  tft.fillRect(8, 16, 24, 14, DARKBLUE);
-  tft.fillRect(34, 16, 16, 14, DARKBLUE);
-  tft.fillRect(52, 16, 16, 14, DARKBLUE);
-  tft.fillRect(70, 16, 16, 14, DARKBLUE);
-  tft.fillRect(88, 16, 28, 14, DARKBLUE);
+  tft.fillRect(10, 16, 14, 14, DARKBLUE);
+  tft.fillRect(26, 16, 14, 14, DARKBLUE);
+  tft.fillRect(42, 16, 14, 14, DARKBLUE);
+  tft.fillRect(58, 16, 23, 14, DARKBLUE);
+  tft.fillRect(83, 16, 29, 14, DARKBLUE);
 }
 
 void adj_draw_symbols() {
   // 0
-  tft.fillRect(11, 21, 8, 4, BLACK);
-  tft.fillRect(21, 21, 8, 4, BLACK);
+  tft.fillRect(13, 21, 8, 4, BLACK);
   // 1
-  tft.fillRect(38, 21, 8, 4, BLACK);
+  tft.drawLine(32, 18, 33, 18, BLACK);
+  tft.drawLine(31, 19, 34, 19, BLACK);
+  tft.drawLine(30, 20, 35, 20, BLACK);
+  tft.drawLine(29, 21, 36, 21, BLACK);
+  tft.drawLine(28, 22, 37, 22, BLACK);
+  tft.drawLine(28, 23, 37, 23, BLACK);
+  tft.drawLine(29, 24, 36, 24, BLACK);
+  tft.drawLine(30, 25, 35, 25, BLACK);
+  tft.drawLine(31, 26, 34, 26, BLACK);
+  tft.drawLine(32, 27, 33, 27, BLACK);
   // 2
-  tft.fillRect(56, 20, 8, 6, BLACK);
-  tft.drawLine(59, 18, 60, 18, BLACK);
-  tft.drawLine(57, 19, 62, 19, BLACK);
-  tft.drawLine(57, 26, 62, 26, BLACK);
-  tft.drawLine(59, 27, 60, 27, BLACK);
-  tft.drawLine(55, 22, 55, 23, BLACK);
-  tft.drawLine(64, 22, 64, 23, BLACK);
+  tft.fillRect(47, 18, 3, 3, BLACK);
+  tft.fillRect(44, 21, 10, 4, BLACK);
+  tft.fillRect(47, 25, 4, 3, BLACK);
   // 3
-  tft.fillRect(73, 21, 10, 4, BLACK);
-  tft.fillRect(76, 18, 4, 3, BLACK);
-  tft.fillRect(76, 25, 4, 3, BLACK);
+  tft.fillRect(60, 21, 19, 4, BLACK);
+  tft.fillRect(63, 18, 4, 3, BLACK);
+  tft.fillRect(72, 18, 4, 3, BLACK);
+  tft.fillRect(63, 25, 4, 3, BLACK);
+  tft.fillRect(72, 25, 4, 3, BLACK);
   // 4
-  tft.fillRect(91, 21, 10, 4, BLACK);
-  tft.fillRect(94, 18, 4, 3, BLACK);
-  tft.fillRect(94, 25, 4, 3, BLACK);
-  tft.fillRect(103, 21, 10, 4, BLACK);
-  tft.fillRect(106, 18, 4, 3, BLACK);
-  tft.fillRect(106, 25, 4, 3, BLACK);
+    // M
+  tft.fillRect(85, 18, 2, 10, BLACK);
+  tft.fillRect(92, 18, 2, 10, BLACK);
+  tft.drawLine(87, 19, 87, 21, BLACK);
+  tft.drawLine(88, 20, 88, 22, BLACK);
+  tft.drawLine(89, 21, 89, 23, BLACK);
+  tft.drawLine(90, 20, 90, 22, BLACK);
+  tft.drawLine(91, 19, 91, 21, BLACK);
+    // A
+  tft.fillRect(95, 20, 2, 8, BLACK);
+  tft.fillRect(100, 20, 2, 8, BLACK);
+  tft.fillRect(97, 23, 3, 2, BLACK);
+  tft.drawLine(96, 19, 100, 19, BLACK);
+  tft.drawLine(97, 18, 99, 18, BLACK);
+  tft.drawPixel(97, 20, BLACK);
+  tft.drawPixel(99, 20, BLACK);
+    //X
+  tft.fillRect(103, 18, 2, 2, BLACK);
+  tft.fillRect(108, 18, 2, 2, BLACK);
+  tft.fillRect(104, 20, 2, 2, BLACK);
+  tft.fillRect(107, 20, 2, 2, BLACK);
+  tft.fillRect(104, 24, 2, 2, BLACK);
+  tft.fillRect(107, 24, 2, 2, BLACK);
+  tft.fillRect(103, 26, 2, 2, BLACK);
+  tft.fillRect(108, 26, 2, 2, BLACK);
+  tft.fillRect(105, 22, 3, 2, BLACK);
 }
 
 

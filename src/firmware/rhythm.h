@@ -26,7 +26,7 @@ bool rhythm_oxygen(int dur_pct);
 int rhythm_get_baseline();
 uint8_t rhythm_get_period();
 uint8_t rhythm_get_phase();
-
+bool baseline_set();
 
 
 #endif

@@ -29,22 +29,26 @@ int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
 #define RHYTHM_BASELINE_TOL 2
-#define RHYTHM_BASELINE_DUR 3000/RHYTHM_TEMPRES  // dur for new baseline, 3s
+#define RHYTHM_BASELINE_DUR 1000/RHYTHM_TEMPRES  // dur for new baseline, 1s
 int baseline = 512;  // baseline sensor read (when not breathing)
 int baseline_ref = 512;
-uint8_t baseline_flat_dur = 0;
+bool baseline_ref_set = false;
+uint16_t baseline_flat_dur = 0;
 
 #define RHYTHM_ANALYZE_EVERY 10  // must be < RHYTHM_BUFFER_SIZE
 #define RHYTHM_OFFSET_PCT 0.0    // trigger feature to inhalation start pct
 #define RHYTHM_INHALE_PCT 0.3    // period percentage useful for oxygenation
 #define RHYTHM_FEATURE_SIZE 32
 #define RHYTHM_FEATURE_SUCK 3
+#define RHYTHM_PERIOD_MIN 1000.0/RHYTHM_TEMPRES  // 1s, must not be 0 because /0
+#define RHYTHM_PERIOD_MAX 8000.0/RHYTHM_TEMPRES  // 8s
 uint8_t feature_distances[RHYTHM_FEATURE_SIZE] = {0};
 uint8_t feature_cursor = 0;
 uint8_t addval_count = 0;
 uint8_t analyze_cursor = 0;
 uint8_t feature_analyze_cursor = 0;
-bool feature_triggerable = true;
+bool feature_triggerable_1 = true;
+bool feature_triggerable_2 = true;
 uint8_t sample_count = 0;
 int sample_count_valve_off = 0;
 float period_smoothed = 4000.0/RHYTHM_TEMPRES;  // start with 40 samples (4s)
@@ -106,6 +110,10 @@ uint8_t rhythm_get_phase() {
   return phase_smpl;
 }
 
+bool baseline_set() {
+  return baseline_ref_set;
+}
+
 
 void compute_period_and_phase() {
   // side effects:
@@ -120,14 +128,14 @@ void compute_period_and_phase() {
   // features - find repeating falling ridge
   // loop through buffer from analyze_cursor to (excluding) buffer_cursor
   while (analyze_cursor != buffer_cursor) {
-    // check for baseline
+    // check for flat baseline
     if (buffer[analyze_cursor] <= (baseline_ref + RHYTHM_BASELINE_TOL)
         && buffer[analyze_cursor] >= (baseline_ref - RHYTHM_BASELINE_TOL)) {
       baseline_flat_dur++;
-      if (baseline_flat_dur == RHYTHM_BASELINE_DUR) {
+      if (!baseline_ref_set && baseline_flat_dur == RHYTHM_BASELINE_DUR) {
         // got new baseline
         baseline = baseline_ref;
-        baseline_flat_dur = 0;
+        baseline_ref_set = true;
       }
     } else {
       baseline_flat_dur = 0;
@@ -165,17 +173,22 @@ void compute_period_and_phase() {
         && baseline_flat_dur < 6
         // && sample_count > sample_count_valve_off+3
         // && (sample_count/period_smoothed) > (RHYTHM_OFFSET_PCT + duration_pct*RHYTHM_INHALE_PCT)
-        && feature_triggerable
+        && feature_triggerable_1
+        && feature_triggerable_2
         // && (first_val - last_val) < RHYTHM_VALS_BIG_DELTA
       ) {
       // found end of exhale
       feature_distances[feature_cursor] = sample_count;
       sample_count = 0;
-      feature_triggerable = false;
+      feature_triggerable_1 = false;
+      feature_triggerable_2 = false;
       if (++feature_cursor == RHYTHM_FEATURE_SIZE) { feature_cursor = 0; } // inc, wrap
     }
-    if (first_val < baseline && last_val > baseline && sample_count > 0.3*period_smoothed) {
-      feature_triggerable = true;
+    if (first_val < baseline && last_val > baseline) {
+      feature_triggerable_1 = true;
+    }
+    if (sample_count > 0.8*period_smoothed) {
+      feature_triggerable_2 = true;
     }
     // housekeeping
     if (sample_count < RHYTHM_BUFFER_SIZE) { // cap phase
@@ -190,13 +203,12 @@ void compute_period_and_phase() {
     int period = feature_distances[feature_analyze_cursor];
     if (period > RHYTHM_BUFFER_SIZE) { period = RHYTHM_BUFFER_SIZE; }  // cap
     period_smoothed = 0.1*period_smoothed + 0.9*period;  // smooth a bit
+    period_smoothed = constrain(period_smoothed, RHYTHM_PERIOD_MIN, RHYTHM_PERIOD_MAX);
     if (++feature_analyze_cursor == RHYTHM_FEATURE_SIZE) { feature_analyze_cursor = 0; } // inc, wrap
   } // next analysis starts from feature_cursor
 
   // phase
-  if (period_smoothed != 0) {  // sanity check
-    phase_smpl = sample_count;  // samples since last period feature
-    phase_pct = sample_count/period_smoothed;  // phase progression in percent
-  }
+  phase_smpl = sample_count;  // samples since last period feature
+  phase_pct = sample_count/period_smoothed;  // phase progression in percent
 
 }
