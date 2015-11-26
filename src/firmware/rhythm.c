@@ -97,7 +97,7 @@ void rhythm_addval(int val) {
   }
 
   // housekeeping
-  if (sample_count < rhythm_count_max) { // cap phase
+  if (sample_count < min(rhythm_count_max, 128)) { // cap phase
     sample_count++;  // inc for every buffer entry
   }
 

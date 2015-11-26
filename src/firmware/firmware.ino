@@ -90,7 +90,6 @@ uint16_t bat_col = GREEN;
 
 #define METERS2FEET 3.28084
 #define OXYGEN_100PCT_ALTITUDE 10058  // FL330
-#define OXYGEN_MIN_PCT 0.1  // 0.0 to 1.0, typically 0.1 to 0.3
 int oxygen_start_fls[] = {0, 125}; // FL0, FL125, CAREFUL: length 2 expected
 int oxygen_start_alts[] = {0, 3810}; // FL0, FL125, CAREFUL: length 2 expected
 uint8_t alt_setting = 0;  // used as index in above arrays
