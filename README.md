@@ -135,29 +135,7 @@ A nasal oxygen cannula gets the oxygen from the controller to the pilot. Additio
 Firmware
 --------
 
-The firmware runs on a stipped down Arduino (Atmege328) and excutes as follows:
-
-* **ON**
-* loop
-  * log breath sensor
-  * event: inhale start
-    * **open valve**, turn on oxygen status LED
-    * inhale LED on
-  * event: valve open for x time
-    * **close valve**, turn off oxygen status LED
-    * x =  altFac \* basePtcFac \* inhalationTime
-  * event: inhale end
-    * inhale LED off
-  * event: exhale start
-    * exhale LED on
-  * event: exhale end
-    * exhale LED off
-  * event: nth loop
-    * get pressure altitude
-      * calculate altitude factor
-* callback: base level button
-  * get basePctFac (-, normal, +, max)
-* **OFF**
+The firmware runs on a stipped down Arduino (Atmege328, Adafruit Trinket Pro):
 
 
 Prototyping Progress
@@ -170,6 +148,8 @@ The start of the oxygen pulse should be at the mid-point following a high point.
 
 ![MPXV7002G](img/breathing-sensor.jpg)
 ![sensor response](img/cannula-breathing-graph.png)
+![case](img/waveglide-case.jpg)
+![system](img/waveglide-system.jpg)
 
 
 Resources
