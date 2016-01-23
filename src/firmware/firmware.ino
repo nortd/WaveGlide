@@ -24,16 +24,11 @@
 #define baro_scl A4
 #define baro_sda A5
 
-// differential pressure sensor pin
-#define breath A3
-
-// other
-#define button 3
-#define buzzer 5
-#define battery A2
-
-// air valve
-#define valve 6
+#define breath A3    // differential pressure sensor
+#define button 3     // ui button
+#define buzzer 5     // piezo buzzer
+#define battery A2   // battery voltage
+#define valve 6      // air valve
 
 // Color definitions
 #define	BLACK           0x0000
@@ -70,24 +65,23 @@ extern "C" {
   #include "rhythm.h"
 }
 
-uint16_t last_sense_breathing = 0;
-uint16_t last_sense_breathing_dur = 0;
+// breathing sensor
+uint16_t last_sense_breathing = 0;      // for sample timing
+uint16_t last_sense_breathing_dur = 0;  // for samble timing
 int breathval = 0;
 uint16_t graph_col = WHITE;
 
+// altitude sensor
 uint16_t last_sense_altitude = 0;
 uint16_t last_sense_altitude_dur = 0;
 int pressure = 0;
 int temperature = 0;
 int altitude = 0;  // pressure alt (bases on 1013 hPa)
 float altitude_smoothed = 0;
+// barometric sensor via I2C
+Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 
-uint16_t last_sense_battery = 0;
-uint16_t last_sense_battery_dur = 0;
-// uint8_t bat_pct = 50;
-float bat_pct = 0.9;
-uint16_t bat_col = GREEN;
-
+// oxygen setting related
 #define METERS2FEET 3.28084
 #define OXYGEN_100PCT_ALTITUDE 10058  // FL330
 int oxygen_start_fls[] = {0, 125}; // FL0, FL125, CAREFUL: length 2 expected
@@ -95,6 +89,13 @@ int oxygen_start_alts[] = {0, 3810}; // FL0, FL125, CAREFUL: length 2 expected
 uint8_t alt_setting = 0;  // used as index in above arrays
 int oxygen_pct = 0;
 
+// battery voltage monitoring
+uint16_t last_sense_battery = 0;
+uint16_t last_sense_battery_dur = 0;
+float bat_pct = 0.9;
+uint16_t bat_col = GREEN;
+
+// interface
 volatile bool button_short_handled = true;
 volatile uint16_t last_button = 0;
 volatile uint16_t last_button_dur = 0;
@@ -102,18 +103,12 @@ bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
 float adj_pcts[] = {0.5, 1.0, 1.5, 2.0, 100.0};  // CAREFUL: length 5 expected
 uint8_t adj_setting = 0;  // will be 1 after registering interrupt
-
-char charBuf[50];
-
 #define SAMPLES_GRAPH_WIDTH 128
 uint8_t samplepos = 0;
-
-
+char charBuf[50];
 // display via SPI
 Adafruit_SSD1351 tft = Adafruit_SSD1351(cs, dc, rst);
 
-// barometric sensor via I2C
-Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 
 
 void onButton() {
@@ -124,6 +119,7 @@ void onButton() {
     button_short_handled = false;
   }
 }
+
 
 
 void setup(void) {
@@ -188,12 +184,31 @@ void setup(void) {
   tft.drawPixel(113, 42, DARKBLUE);
   displayText("0", 123, 57, DARKBLUE);
 
+  // set alt mode
   if (button_held) {
-    handle_long_button();
+    // If button was helled during power-up set to next alt mode.
+    // Specifically this means oxygenation starts at a higher alt.
+    alt_setting++;
+    if (alt_setting >= 2) { alt_setting = 0; }
+    sprintf(charBuf, "FL%03i", oxygen_start_fls[alt_setting]);
+    // draw
+    if (alt_setting == 0) {
+      tft.fillRect(63, 4, 32, 7, BLACK);
+      displayText(charBuf, 64, 4, CYAN);
+      tft.fillRect(124, 8, 4, 48, CYAN);
+    } else if (alt_setting == 1) {
+      tft.fillRect(63, 4, 32, 7, CYAN);
+      displayText(charBuf, 64, 4, BLACK);
+      tft.fillRect(124, 8, 4, 48, BLACK);
+      tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, 330, 48, 0), CYAN);
+    }
   }
+
   // enable button interrupt
   attachInterrupt(digitalPinToInterrupt(button), onButton, CHANGE);
 }
+
+
 
 void loop() {
   last_sense_breathing_dur = millis()-last_sense_breathing;
@@ -289,7 +304,9 @@ void sense_altitude() {
       // reject
     }
     // print numeral, flight level, in feet, /100, rounded to nearest 500
-    int flight_level = round((altitude_smoothed * METERS2FEET)/500) * 5;
+    // int flight_level = round((altitude_smoothed * METERS2FEET)/500) * 5;
+    // flight level, do not round to nearest 500
+    int flight_level = round((altitude_smoothed * METERS2FEET)/100);
     flight_level = constrain(flight_level, 0, 330);
     sprintf(charBuf, "%03i", flight_level);
     tft.fillRect(59, 49, 36, 14, BLACK);
@@ -306,6 +323,8 @@ void sense_altitude() {
     // Serial.println("Sensor error");
   }
 }
+
+
 
 void set_oxygen_pct(float alt) {
   if (adj_setting == 4) {  // max setting -> 100%
@@ -339,6 +358,7 @@ void set_oxygen_pct(float alt) {
     tft.fillRect(57, 37, 35, 5, CYAN);
   }
 }
+
 
 
 void sense_battery() {
@@ -382,6 +402,7 @@ void sense_battery() {
   uint8_t level = round(bat_pct*20);
   tft.fillRect(1, 1, level, 8, bat_col);
 }
+
 
 
 void handle_short_button() {
@@ -476,32 +497,11 @@ void adj_draw_symbols() {
 
 
 
-void handle_long_button() {
-  alt_setting++;
-  if (alt_setting >= 2) { alt_setting = 0; }
-  sprintf(charBuf, "FL%03i", oxygen_start_fls[alt_setting]);
-  // draw
-  if (alt_setting == 0) {
-    tft.fillRect(63, 4, 32, 7, BLACK);
-    displayText(charBuf, 64, 4, CYAN);
-    tft.fillRect(124, 8, 4, 48, CYAN);
-  } else if (alt_setting == 1) {
-    tft.fillRect(63, 4, 32, 7, CYAN);
-    displayText(charBuf, 64, 4, BLACK);
-    tft.fillRect(124, 8, 4, 48, BLACK);
-    tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, 330, 48, 0), CYAN);
-  }
-}
-
-
-
 void displayText(char *text, int16_t x, int16_t y, uint16_t color) {
   tft.setCursor(x,y);
   tft.setTextColor(color);
   tft.print(text);
 }
-
-
 
 void testtriangles() {
   tft.fillScreen(BLACK);
