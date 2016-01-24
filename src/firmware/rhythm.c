@@ -30,8 +30,8 @@ int baseline_last_ref = 512;
 bool baseline_ref_set = false;
 uint16_t baseline_flat_dur = 0;
 
-#define RHYTHM_OFFSET_PCT 0.05   // trigger feature to inhalation start pct
-#define RHYTHM_INHALE_PCT 0.4    // period percentage useful for oxygenation
+#define RHYTHM_OFFSET_PCT 0.03   // trigger feature to inhalation start pct
+#define RHYTHM_INHALE_PCT 0.32    // period percentage useful for oxygenation
 #define RHYTHM_FEATURE_SUCK 3
 // #define RHYTHM_COUNT_MAX_DEFAULT 20  // 2s
 #define RHYTHM_LAST_PERIOD_DEFAULT 4000.0/RHYTHM_TEMPRES;  // init at 40 samples (4s)
