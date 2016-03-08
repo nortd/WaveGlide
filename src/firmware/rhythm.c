@@ -22,7 +22,7 @@
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
-#define RHYTHM_BASELINE_TOL 3
+#define RHYTHM_BASELINE_TOL 4
 #define RHYTHM_BASELINE_DUR 1000/RHYTHM_TEMPRES  // dur for new baseline, 1s
 #define RHYTHM_OFFLINE_DUR 4000/RHYTHM_TEMPRES   // time considered as canula off event
 int baseline = 512;  // baseline sensor read (when not breathing)

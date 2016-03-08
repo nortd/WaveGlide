@@ -158,7 +158,6 @@ void setup(void) {
   // testtriangles();
   // tft.invert(true);
   // title animation
-  while(true) {
   tft.drawXBitmap(20, 76, glider_bits, glider_width, glider_height, WHITE);
   delay(200);
   tft.fillScreen(BLACK);
@@ -194,7 +193,6 @@ void setup(void) {
   displayText(VERSION, 86, 50, WHITE);
   delay(3000);
   tft.fillScreen(BLACK);
-  }
 
   displayText("START", 31, 4, DARKBLUE);
   displayText("FL000", 64, 4, CYAN);
