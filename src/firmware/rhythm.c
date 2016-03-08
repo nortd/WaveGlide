@@ -59,7 +59,7 @@ void rhythm_addval(int val) {
       baseline_ref_set = true;
       // increase baseline tolerance
       // prevents mis-oxygenation from sensor noise
-      baseline_last_tol += 4;
+      baseline_last_tol += 2;
     }
   } else {
     baseline_flat_dur = 0;
