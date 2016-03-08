@@ -87,9 +87,10 @@ Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 
 // oxygen setting related
 #define METERS2FEET 3.28084
-#define OXYGEN_100PCT_ALTITUDE 10058  // FL330
-int oxygen_start_fls[] = {0, 125}; // FL0, FL125, CAREFUL: length 2 expected
-int oxygen_start_alts[] = {0, 3810}; // FL0, FL125, CAREFUL: length 2 expected
+#define OXYGEN_100PCT_FL 300  // FL300
+#define OXYGEN_100PCT_ALTITUDE 9144  // FL300
+int oxygen_start_fls[] = {100, 50}; // FL100, FL50, CAREFUL: length 2 expected
+int oxygen_start_alts[] = {3048, 1524}; // FL100, FL50, CAREFUL: length 2 expected
 uint8_t alt_setting = 0;  // used as index in above arrays
 int oxygen_pct = 0;
 
@@ -106,7 +107,7 @@ volatile uint16_t last_button_dur = 0;
 bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
 float adj_pcts[] = {0.5, 1.0, 1.5, 2.0, 100.0};  // CAREFUL: length 5 expected
-uint8_t adj_setting = 0;  // will be 1 after registering interrupt
+uint8_t adj_setting = 1;
 #define SAMPLES_GRAPH_WIDTH 128
 uint8_t samplepos = 0;
 char charBuf[50];
@@ -191,14 +192,18 @@ void setup(void) {
   tft.setTextSize(1);
   displayText("firmware   v", 12, 50, ORANGE);
   displayText(VERSION, 86, 50, WHITE);
+  displayText("(beta testing only)", 8, 64, GRAY);
   delay(3000);
   tft.fillScreen(BLACK);
 
+  // build GUI
+  //
   displayText("START", 31, 4, DARKBLUE);
-  displayText("FL000", 64, 4, CYAN);
+  displayText("FL100", 64, 4, CYAN);
   tft.drawLine(94, 7, 127, 7, CYAN);
-  tft.fillRect(124, 8, 4, 48, CYAN);
-  displayText("330", 110, 0, DARKBLUE);
+  // tft.fillRect(124, 8, 4, 48, CYAN);
+  tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), CYAN);
+  displayText("300", 110, 0, DARKBLUE);
 
   adj_draw_rects();
   tft.fillRect(26, 16, 14, 14, GREEN);
@@ -222,6 +227,7 @@ void setup(void) {
   tft.drawPixel(113, 42, DARKBLUE);
   displayText("0", 123, 57, DARKBLUE);
 
+
   // set alt mode
   if (button_held) {
     // If button was helled during power-up set to next alt mode.
@@ -238,7 +244,7 @@ void setup(void) {
       tft.fillRect(63, 4, 32, 7, CYAN);
       displayText(charBuf, 64, 4, BLACK);
       tft.fillRect(124, 8, 4, 48, BLACK);
-      tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, 330, 48, 0), CYAN);
+      tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), CYAN);
     }
   }
 
@@ -345,14 +351,14 @@ void sense_altitude() {
     // int flight_level = round((altitude_smoothed * METERS2FEET)/500) * 5;
     // flight level, do not round to nearest 500
     int flight_level = round((altitude_smoothed * METERS2FEET)/100);
-    flight_level = constrain(flight_level, 0, 330);
+    flight_level = constrain(flight_level, 0, OXYGEN_100PCT_FL);
     sprintf(charBuf, "%03i", flight_level);
     tft.fillRect(59, 49, 36, 14, BLACK);
     tft.setTextSize(2);
     displayText(charBuf, 59, 49, WHITE);
     tft.setTextSize(1);
     tft.fillRect(120, 8, 4, 48, BLACK);
-    int flheight = map(flight_level, 0, 330, 0, 48);
+    int flheight = map(flight_level, 0, OXYGEN_100PCT_FL, 0, 48);
     tft.fillRect(120, 8+(48-flheight), 4, flheight, WHITE);
     // tft.fillRect(0, 16 , 5*6, 23, BLACK);
     // sprintf(charBuf, "%im", altitude);
@@ -365,13 +371,56 @@ void sense_altitude() {
 
 
 void set_oxygen_pct(float alt) {
+  // required oxygen by altitude see ch.12 "Dancing with the Wind" by Clement
+  // FL000 - 21%
+  // FL050 - 25%
+  // FL100 - 30%
+  // FL150 - 37%
+  // FL200 - 45%
+  // FL250 - 56%
+  // FL300 - 70%
+  //
+  // Let's assume the following:
+  // - nose cannula cannot supply more than 70% tops
+  // - average tidal lung volume is 500ml, https://en.wikipedia.org/wiki/Tidal_volume
+  // - the average inhale freq is 12/min or 0.2Hz
+  // - the average inhalation volume is 6l/min, regulator is set to it
+  //
+  // The question is how long (pct of inhalation time) needs to be oxygenated
+  // full (70%) to achieve the oxygen levels of the above table.
+  // 70*(pct/100.0) + 21*(1.0-(pct/100.0)) =  required_o2_pct
+  //
+  // Oxygenation times:
+  // FL000 -    0m -   0%
+  // FL050 - 1524m -   8%
+  // FL100 - 3048m -  19%
+  // FL150 - 4572m -  33%
+  // FL200 - 6096m -  49%
+  // FL250 - 7620m -  72%
+  // FL300 - 9144m - 100%
+  //
+  // Need function to produce these factors:
+  //    0 -> 0
+  // 1524 -> 0.00525
+  // 3048 -> 0.00623
+  // 4572 -> 0.00722
+  // 6096 -> 0.00803
+  // 7620 -> 0.00945
+  // 9144 -> 0.01094
+  //
+  // Fitting these values:
+  // [[1524,0.00525], [3048,0.00623], [4572,0.00722], [6096,0.00803], [7620,0.00945], [9144,0.01094]]
+  // came up with this (using the "Fit" command on WolframAlpha):
+  // (0.0000008*x**2+ 0.0036*x)
+
   if (adj_setting == 4) {  // max setting -> 100%
     oxygen_pct = 100;
   } else {
-    // set a oxygen percentaged based on altitude, linearly
+    // set a oxygen percentaged based on altitude
     if (alt > oxygen_start_alts[alt_setting]) {
       if (alt < OXYGEN_100PCT_ALTITUDE) {
-        oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100);
+        // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
+        oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
       } else {
         oxygen_pct = 100; // 100%
       }

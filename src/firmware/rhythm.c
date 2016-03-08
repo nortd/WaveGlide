@@ -22,13 +22,14 @@
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
-#define RHYTHM_BASELINE_TOL 4
+#define RHYTHM_BASELINE_TOL 3
 #define RHYTHM_BASELINE_DUR 1000/RHYTHM_TEMPRES  // dur for new baseline, 1s
 #define RHYTHM_OFFLINE_DUR 4000/RHYTHM_TEMPRES   // time considered as canula off event
 int baseline = 512;  // baseline sensor read (when not breathing)
 int baseline_last_ref = 512;
 bool baseline_ref_set = false;
 uint16_t baseline_flat_dur = 0;
+uint8_t baseline_last_tol = RHYTHM_BASELINE_TOL;
 
 #define RHYTHM_OFFSET_PCT 0.03   // trigger feature to inhalation start pct
 #define RHYTHM_INHALE_PCT 0.32    // period percentage useful for oxygenation
@@ -48,14 +49,17 @@ void rhythm_addval(int val) {
   // find feature and calculate period and phase
 
   // check for flat baseline
-  if (val <= (baseline_last_ref + RHYTHM_BASELINE_TOL)
-      && val >= (baseline_last_ref - RHYTHM_BASELINE_TOL)) {
+  if (val <= (baseline_last_ref + baseline_last_tol)
+      && val >= (baseline_last_ref - baseline_last_tol)) {
     // val around baseline_last_ref
     baseline_flat_dur++;
     if (!baseline_ref_set && (baseline_flat_dur == RHYTHM_BASELINE_DUR)) {
       // got new baseline
       baseline = baseline_last_ref;
       baseline_ref_set = true;
+      // increase baseline tolerance
+      // prevents mis-oxygenation from sensor noise
+      baseline_last_tol += 4;
     }
   } else {
     baseline_flat_dur = 0;
