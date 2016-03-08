@@ -13,6 +13,9 @@
   for more details.
 */
 
+// version
+#define VERSION "0.8.0"
+
 // display pins
 #define sclk 13
 #define mosi 11
@@ -63,6 +66,7 @@
 
 extern "C" {
   #include "rhythm.h"
+  #include "bitmaps.c"
 }
 
 // breathing sensor
@@ -106,7 +110,7 @@ uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 #define SAMPLES_GRAPH_WIDTH 128
 uint8_t samplepos = 0;
 char charBuf[50];
-// display via SPI
+// display via SPI, 128x96
 Adafruit_SSD1351 tft = Adafruit_SSD1351(cs, dc, rst);
 
 
@@ -151,10 +155,46 @@ void setup(void) {
     while(1);
   }
 
-  testtriangles();
-  delay(500);
+  // testtriangles();
   // tft.invert(true);
+  // title animation
+  while(true) {
+  tft.drawXBitmap(20, 76, glider_bits, glider_width, glider_height, WHITE);
+  delay(200);
   tft.fillScreen(BLACK);
+  tft.drawXBitmap(20, 56, glider_bits, glider_width, glider_height, WHITE);
+  tft.drawXBitmap(-60, 65, cloud_left_bits, cloud_left_width, cloud_left_height, WHITE);
+  tft.drawXBitmap(133, 65, cloud_right_bits, cloud_right_width, cloud_right_height, WHITE);
+  delay(200);
+  tft.fillScreen(BLACK);
+  tft.drawXBitmap(20, 36, glider_bits, glider_width, glider_height, WHITE);
+  tft.drawXBitmap(-40, 65, cloud_left_bits, cloud_left_width, cloud_left_height, WHITE);
+  tft.drawXBitmap(113, 65, cloud_right_bits, cloud_right_width, cloud_right_height, WHITE);
+  delay(200);
+  tft.fillScreen(BLACK);
+  tft.drawXBitmap(20, 16, glider_bits, glider_width, glider_height, WHITE);
+  tft.drawXBitmap(-20, 65, cloud_left_bits, cloud_left_width, cloud_left_height, WHITE);
+  tft.drawXBitmap(93, 65, cloud_right_bits, cloud_right_width, cloud_right_height, WHITE);
+  delay(200);
+  tft.fillScreen(BLACK);
+  tft.drawXBitmap(20, -14, glider_bits, glider_width, glider_height, GRAY);
+  tft.drawXBitmap(0, 35, cloud_left_bits, cloud_left_width, cloud_left_height, GRAY);
+  tft.drawXBitmap(73, 35, cloud_right_bits, cloud_right_width, cloud_right_height, GRAY);
+  delay(200);
+  tft.fillScreen(BLACK);
+  tft.drawXBitmap(20, -44, glider_bits, glider_width, glider_height, GRAY);
+  tft.drawXBitmap(0, 5, cloud_left_bits, cloud_left_width, cloud_left_height, GRAY);
+  tft.drawXBitmap(73, 5, cloud_right_bits, cloud_right_width, cloud_right_height, GRAY);
+  delay(200);
+  tft.fillScreen(BLACK);
+  tft.setTextSize(2);
+  displayText("WAVEGLIDE", 12, 28, ORANGE);
+  tft.setTextSize(1);
+  displayText("firmware   v", 12, 50, ORANGE);
+  displayText(VERSION, 86, 50, WHITE);
+  delay(3000);
+  tft.fillScreen(BLACK);
+  }
 
   displayText("START", 31, 4, DARKBLUE);
   displayText("FL000", 64, 4, CYAN);
