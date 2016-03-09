@@ -34,15 +34,20 @@
 #define valve 6      // air valve
 
 // Color definitions
+// use this python code to generate
+// def color16bit(r,g,b):  # r,g,b ... 0-255
+//    return hex(((((r >> 3) << 6) | g >> 2) << 5) | b >> 3)
 #define	BLACK           0x0000
 #define	BLUE            0x001F
 #define	RED             0xF800
 #define	GREEN           0x07E0
 #define CYAN            0x07FF
+#define OXYBLUE         0x2C3F
 #define MAGENTA         0xF81F
 #define YELLOW          0xFFE0
 #define WHITE           0xFFFF
 #define GRAY            0x7BEF
+#define DARKGRAY        0x528A
 #define ORANGE          0xFD20
 #define NAVY            0x000F
 #define DARKGREEN       0x03E0
@@ -73,7 +78,7 @@ extern "C" {
 uint16_t last_sense_breathing = 0;      // for sample timing
 uint16_t last_sense_breathing_dur = 0;  // for samble timing
 int breathval = 0;
-uint16_t graph_col = WHITE;
+uint16_t graph_col = DARKGRAY;
 
 // altitude sensor
 uint16_t last_sense_altitude = 0;
@@ -106,7 +111,7 @@ volatile uint16_t last_button = 0;
 volatile uint16_t last_button_dur = 0;
 bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
-float adj_pcts[] = {0.5, 1.0, 1.5, 2.0, 100.0};  // CAREFUL: length 5 expected
+float adj_pcts[] = {0.5, 1.0, 1.5, 100.0};  // CAREFUL: length 4 expected
 uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 #define SAMPLES_GRAPH_WIDTH 128
 uint8_t samplepos = 0;
@@ -199,18 +204,18 @@ void setup(void) {
   // build GUI
   //
   displayText("START", 31, 4, DARKBLUE);
-  displayText("FL100", 64, 4, CYAN);
-  tft.drawLine(94, 7, 127, 7, CYAN);
-  // tft.fillRect(124, 8, 4, 48, CYAN);
-  tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), CYAN);
+  displayText("FL100", 64, 4, OXYBLUE);
+  tft.drawLine(94, 7, 127, 7, OXYBLUE);
+  // tft.fillRect(124, 8, 4, 48, OXYBLUE);
+  tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), OXYBLUE);
   displayText("300", 110, 0, DARKBLUE);
 
   adj_draw_rects();
-  tft.fillRect(26, 16, 14, 14, GREEN);
+  tft.fillRect(26, 16, 14, 14, WHITE);
   adj_draw_symbols();
 
   displayText("O2", 11, 36, DARKBLUE);
-  tft.fillRect(56, 36, 37, 7, CYAN);
+  tft.fillRect(56, 36, 37, 7, OXYBLUE);
   displayText("100%", 28, 36, WHITE);
 
   displayText("NOW", 11, 52, DARKBLUE);
@@ -238,13 +243,13 @@ void setup(void) {
     // draw
     if (alt_setting == 0) {
       tft.fillRect(63, 4, 32, 7, BLACK);
-      displayText(charBuf, 64, 4, CYAN);
-      tft.fillRect(124, 8, 4, 48, CYAN);
+      displayText(charBuf, 64, 4, OXYBLUE);
+      tft.fillRect(124, 8, 4, 48, OXYBLUE);
     } else if (alt_setting == 1) {
-      tft.fillRect(63, 4, 32, 7, CYAN);
+      tft.fillRect(63, 4, 32, 7, OXYBLUE);
       displayText(charBuf, 64, 4, BLACK);
       tft.fillRect(124, 8, 4, 48, BLACK);
-      tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), CYAN);
+      tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), OXYBLUE);
     }
   }
 
@@ -303,16 +308,16 @@ void sense_breathing() {
     graph_col = BLUE;
   } else {
     digitalWrite(valve, LOW);
-    graph_col = WHITE;
+    graph_col = DARKGRAY;
   }
 
   // display period
   tft.drawLine(0, 94, tft.width(), 94, BLACK);
-  tft.drawLine(0, 94, rhythm_get_period(), 94, RED);
+  tft.drawLine(0, 94, rhythm_get_period(), 94, DARKBLUE);
 
   // display phase
   tft.drawLine(0, 95, tft.width(), 95, BLACK);
-  tft.drawLine(0, 95, rhythm_get_phase(), 95, CYAN);
+  tft.drawLine(0, 95, rhythm_get_phase(), 95, DARKGRAY);
 
 }
 
@@ -414,7 +419,7 @@ void set_oxygen_pct(float alt) {
   // (0.0000008*x**2+ 0.0036*x)
   // (0.0000009*x**2 + 0.0027*x) - a bit less at lower alts (initial O2 bursts)
 
-  if (adj_setting == 4) {  // max setting -> 100%
+  if (adj_setting == 3) {  // max setting -> 100%
     oxygen_pct = 100;
   } else {
     // set a oxygen percentaged based on altitude
@@ -439,12 +444,12 @@ void set_oxygen_pct(float alt) {
   if (oxygen_pct < 100) {
     sprintf(charBuf, "%02i", oxygen_pct);
     displayText(charBuf, 34, 36, WHITE);
-    tft.fillRect(57, 37, pctwidth, 5, CYAN);
+    tft.fillRect(57, 37, pctwidth, 5, OXYBLUE);
     tft.fillRect(57+pctwidth, 37, 35-pctwidth, 5, BLACK);
   } else if (oxygen_pct >= 100) {
     sprintf(charBuf, "%i", oxygen_pct);
     displayText(charBuf, 28, 36, WHITE);
-    tft.fillRect(57, 37, 35, 5, CYAN);
+    tft.fillRect(57, 37, 35, 5, OXYBLUE);
   }
 }
 
@@ -496,7 +501,7 @@ void sense_battery() {
 
 void handle_short_button() {
   adj_setting++;
-  if (adj_setting >= 5) { adj_setting = 0; }
+  if (adj_setting >= 4) { adj_setting = 0; }
   // draw
   if (adj_setting == 0) {
     adj_draw_rects();
@@ -504,19 +509,19 @@ void handle_short_button() {
     adj_draw_symbols();
   } else if (adj_setting == 1) {
     adj_draw_rects();
-    tft.fillRect(26, 16, 14, 14, GREEN);
+    tft.fillRect(26, 16, 14, 14, WHITE);
     adj_draw_symbols();
   } else if (adj_setting == 2) {
     adj_draw_rects();
     tft.fillRect(42, 16, 14, 14, WHITE);
     adj_draw_symbols();
   } else if (adj_setting == 3) {
+  //   adj_draw_rects();
+  //   tft.fillRect(58, 16, 23, 14, WHITE);
+  //   adj_draw_symbols();
+  // } else if (adj_setting == 4) {
     adj_draw_rects();
-    tft.fillRect(58, 16, 23, 14, WHITE);
-    adj_draw_symbols();
-  } else if (adj_setting == 4) {
-    adj_draw_rects();
-    tft.fillRect(83, 16, 29, 14, RED);
+    tft.fillRect(83, 16, 29, 14, WHITE);
     adj_draw_symbols();
   }
   // update oxygen_pct
@@ -527,7 +532,7 @@ void adj_draw_rects() {
   tft.fillRect(10, 16, 14, 14, DARKBLUE);
   tft.fillRect(26, 16, 14, 14, DARKBLUE);
   tft.fillRect(42, 16, 14, 14, DARKBLUE);
-  tft.fillRect(58, 16, 23, 14, DARKBLUE);
+  // tft.fillRect(58, 16, 23, 14, DARKBLUE);
   tft.fillRect(83, 16, 29, 14, DARKBLUE);
 }
 
@@ -590,49 +595,4 @@ void displayText(char *text, int16_t x, int16_t y, uint16_t color) {
   tft.setCursor(x,y);
   tft.setTextColor(color);
   tft.print(text);
-}
-
-void testtriangles() {
-  tft.fillScreen(BLACK);
-  int color = 0xF800;
-  int t;
-  int w = tft.width()/2;
-  int x = tft.height();
-  int y = 0;
-  int z = tft.width();
-  for(t = 0 ; t <= 15; t+=1) {
-    tft.drawTriangle(w, y, y, x, z, x, color);
-    x-=4;
-    y+=4;
-    z-=4;
-    color+=100;
-  }
-}
-
-void lcdTestPattern(void)
-{
-  uint32_t i,j;
-  tft.goTo(0, 0);
-
-  for(i=0;i<128;i++)
-  {
-    for(j=0;j<128;j++)
-    {
-      if(i<16){
-        tft.writeData(RED>>8); tft.writeData(RED);
-      }
-      else if(i<32) {
-        tft.writeData(YELLOW>>8);tft.writeData(YELLOW);
-      }
-      else if(i<48){tft.writeData(GREEN>>8);tft.writeData(GREEN);}
-      else if(i<64){tft.writeData(CYAN>>8);tft.writeData(CYAN);}
-      else if(i<80){tft.writeData(BLUE>>8);tft.writeData(BLUE);}
-      else if(i<96){tft.writeData(MAGENTA>>8);tft.writeData(MAGENTA);}
-      else if(i<112){tft.writeData(BLACK>>8);tft.writeData(BLACK);}
-      else {
-        tft.writeData(WHITE>>8);
-        tft.writeData(WHITE);
-       }
-    }
-  }
 }
