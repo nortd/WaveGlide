@@ -412,6 +412,7 @@ void set_oxygen_pct(float alt) {
   // [[1524,0.00525], [3048,0.00623], [4572,0.00722], [6096,0.00803], [7620,0.00945], [9144,0.01094]]
   // came up with this (using the "Fit" command on WolframAlpha):
   // (0.0000008*x**2+ 0.0036*x)
+  // (0.0000009*x**2 + 0.0027*x) - a bit less at lower alts (initial O2 bursts)
 
   if (adj_setting == 4) {  // max setting -> 100%
     oxygen_pct = 100;
@@ -420,7 +421,8 @@ void set_oxygen_pct(float alt) {
     if (alt > oxygen_start_alts[alt_setting]) {
       if (alt < OXYGEN_100PCT_ALTITUDE) {
         // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
-        oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
+        // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
+        oxygen_pct = (0.0000009*alt + 0.0027)*alt; // above function
       } else {
         oxygen_pct = 100; // 100%
       }
