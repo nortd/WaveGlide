@@ -48,7 +48,9 @@
 #define WHITE           0xFFFF
 #define GRAY            0x7BEF
 #define DARKGRAY        0x528A
-#define ORANGE          0xFD20
+#define ORANGE          0xFC23
+#define UIORANGE        0xFD20
+#define DARKORANGE      0xFD20
 #define NAVY            0x000F
 #define DARKGREEN       0x03E0
 #define DARKCYAN        0x03EF
@@ -211,7 +213,7 @@ void setup(void) {
   displayText("300", 110, 0, DARKBLUE);
 
   adj_draw_rects();
-  tft.fillRect(26, 16, 14, 14, WHITE);
+  tft.fillRect(26, 16, 14, 14, UIORANGE);
   adj_draw_symbols();
 
   displayText("O2", 11, 36, DARKBLUE);
@@ -292,8 +294,8 @@ void sense_breathing() {
   rhythm_addval(breathval);
   // Serial.println(breathval);
   int val = (breathval-rhythm_get_baseline())*0.4;
-  if (val > 14) { val = 14; }
-  if (val < -14) { val = -14; }
+  if (val > 12) { val = 12; }
+  if (val < -12) { val = -12; }
   if (!baseline_set()) { graph_col = DARKBLUE; }
   tft.drawLine(samplepos, 79, samplepos, 79-val, graph_col);
   if (samplepos+1 < tft.width()) {
@@ -305,7 +307,7 @@ void sense_breathing() {
 
   if (rhythm_oxygen(oxygen_pct)) {
     digitalWrite(valve, HIGH);
-    graph_col = BLUE;
+    graph_col = OXYBLUE;
   } else {
     digitalWrite(valve, LOW);
     graph_col = DARKGRAY;
@@ -474,7 +476,7 @@ void sense_battery() {
   if (bat_pct > 0.5) {
     bat_col = GREEN;
   } else if (bat_pct > 0.3) {
-    bat_col = ORANGE;
+    bat_col = DARKORANGE;
   } else {
     bat_col = RED;
   }
@@ -505,23 +507,19 @@ void handle_short_button() {
   // draw
   if (adj_setting == 0) {
     adj_draw_rects();
-    tft.fillRect(10, 16, 14, 14, WHITE);
+    tft.fillRect(10, 16, 14, 14, UIORANGE);
     adj_draw_symbols();
   } else if (adj_setting == 1) {
     adj_draw_rects();
-    tft.fillRect(26, 16, 14, 14, WHITE);
+    tft.fillRect(26, 16, 14, 14, UIORANGE);
     adj_draw_symbols();
   } else if (adj_setting == 2) {
     adj_draw_rects();
-    tft.fillRect(42, 16, 14, 14, WHITE);
+    tft.fillRect(42, 16, 14, 14, UIORANGE);
     adj_draw_symbols();
   } else if (adj_setting == 3) {
-  //   adj_draw_rects();
-  //   tft.fillRect(58, 16, 23, 14, WHITE);
-  //   adj_draw_symbols();
-  // } else if (adj_setting == 4) {
     adj_draw_rects();
-    tft.fillRect(83, 16, 29, 14, WHITE);
+    tft.fillRect(83, 16, 29, 14, UIORANGE);
     adj_draw_symbols();
   }
   // update oxygen_pct
@@ -532,7 +530,6 @@ void adj_draw_rects() {
   tft.fillRect(10, 16, 14, 14, DARKBLUE);
   tft.fillRect(26, 16, 14, 14, DARKBLUE);
   tft.fillRect(42, 16, 14, 14, DARKBLUE);
-  // tft.fillRect(58, 16, 23, 14, DARKBLUE);
   tft.fillRect(83, 16, 29, 14, DARKBLUE);
 }
 
