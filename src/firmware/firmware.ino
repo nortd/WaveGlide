@@ -107,7 +107,7 @@ volatile uint16_t last_button_dur = 0;
 bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
 float adj_pcts[] = {0.5, 1.0, 1.5, 2.0, 100.0};  // CAREFUL: length 5 expected
-uint8_t adj_setting = 1;
+uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 #define SAMPLES_GRAPH_WIDTH 128
 uint8_t samplepos = 0;
 char charBuf[50];
