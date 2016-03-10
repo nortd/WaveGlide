@@ -113,7 +113,7 @@ volatile uint16_t last_button = 0;
 volatile uint16_t last_button_dur = 0;
 bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
-float adj_pcts[] = {0.5, 1.0, 1.5, 100.0};  // CAREFUL: length 4 expected
+float adj_pcts[] = {0.7, 1.0, 1.3, 100.0};  // CAREFUL: length 4 expected
 uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 #define SAMPLES_GRAPH_WIDTH 128
 uint8_t samplepos = 0;
@@ -419,7 +419,9 @@ void set_oxygen_pct(float alt) {
   // [[1524,0.00525], [3048,0.00623], [4572,0.00722], [6096,0.00803], [7620,0.00945], [9144,0.01094]]
   // came up with this (using the "Fit" command on WolframAlpha):
   // (0.0000008*x**2+ 0.0036*x)
-  // (0.0000009*x**2 + 0.0027*x) - a bit less at lower alts (initial O2 bursts)
+  // (0.00000084*x**2+ 0.00347*x)-2 - norm curve (less for initial O2 bursts)
+  // (0.00000134*x**2+ 0.0036*x) - high curve
+  // (0.00000102*x**2 + 0.00355*(x-5000)) - low curve
 
   if (adj_setting == 3) {  // max setting -> 100%
     oxygen_pct = 100;
@@ -429,7 +431,7 @@ void set_oxygen_pct(float alt) {
       if (alt < OXYGEN_100PCT_ALTITUDE) {
         // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
         // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
-        oxygen_pct = (0.0000009*alt + 0.0027)*alt; // above function
+        oxygen_pct = (0.00000084*alt**2 + 0.00347*alt) - 2; // above function
       } else {
         oxygen_pct = 100; // 100%
       }
