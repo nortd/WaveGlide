@@ -14,7 +14,7 @@
 */
 
 // version
-#define VERSION "0.8.0"
+#define VERSION "0.8.1"
 
 // display pins
 #define sclk 13
@@ -105,7 +105,7 @@ int oxygen_pct = 0;
 uint16_t last_sense_battery = 0;
 uint16_t last_sense_battery_dur = 0;
 float bat_pct = 0.9;
-uint16_t bat_col = GREEN;
+uint16_t bat_col = WHITE;
 
 // interface
 volatile bool button_short_handled = true;
@@ -431,7 +431,7 @@ void set_oxygen_pct(float alt) {
       if (alt < OXYGEN_100PCT_ALTITUDE) {
         // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
         // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
-        oxygen_pct = (0.00000084*alt**2 + 0.00347*alt) - 2; // above function
+        oxygen_pct = (0.00000084*alt*alt + 0.00347*alt) - 2; // above function
       } else {
         oxygen_pct = 100; // 100%
       }
@@ -476,7 +476,7 @@ void sense_battery() {
   bat_pct = 0.8*bat_pct + 0.2*newbat_pct;
   // color
   if (bat_pct > 0.5) {
-    bat_col = GREEN;
+    bat_col = WHITE;
   } else if (bat_pct > 0.3) {
     bat_col = DARKORANGE;
   } else {
