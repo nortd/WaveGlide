@@ -14,7 +14,7 @@
 */
 
 // version
-#define VERSION "0.8.1"
+#define VERSION "0.8.2"
 
 // display pins
 #define sclk 13
@@ -421,7 +421,7 @@ void set_oxygen_pct(float alt) {
   // (0.0000008*x**2+ 0.0036*x)
   // (0.00000084*x**2+ 0.00347*x)-2 - norm curve (less for initial O2 bursts)
   // (0.00000134*x**2+ 0.0036*x) - high curve
-  // (0.00000102*x**2 + 0.00355*(x-5000)) - low curve
+  // ((0.00000180*(x-1400)**2)+3) - low curve
 
   if (adj_setting == 3) {  // max setting -> 100%
     oxygen_pct = 100;
@@ -431,7 +431,7 @@ void set_oxygen_pct(float alt) {
       if (alt < OXYGEN_100PCT_ALTITUDE) {
         // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
         // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
-        oxygen_pct = (0.00000084*alt*alt + 0.00347*alt) - 2; // above function
+        oxygen_pct = ((0.00000180*(alt-1400)*(alt-1400))+3);  // above function
       } else {
         oxygen_pct = 100; // 100%
       }
