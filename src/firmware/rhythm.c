@@ -41,6 +41,7 @@ uint8_t sample_count = 0;
 // uint8_t rhythm_count_max = RHYTHM_COUNT_MAX_DEFAULT;
 uint8_t feature_dedection_delayer = 0;
 uint8_t last_period = RHYTHM_LAST_PERIOD_DEFAULT;
+float last_period_smoothed = RHYTHM_LAST_PERIOD_DEFAULT;
 float phase_pct = 0.0;     // current phase position in percent
 float duration_pct = 0.0;  // oxygenation percentage as requested
 
@@ -104,8 +105,8 @@ void rhythm_addval(int val) {
       } else {
         last_period = sample_count;
       }
+      last_period_smoothed = 0.7*last_period_smoothed + 0.3*last_period;
       sample_count = 0;
-      // rhythm_count_max = min(2*last_period, 128);  // only increase after first feature
       feature_dedection_delayer = 0;
     }
   }
@@ -114,12 +115,6 @@ void rhythm_addval(int val) {
   if (sample_count < 128) { // cap phase
     sample_count++;  // inc for every buffer entry
   }
-  // else {
-  //   // assume offline
-  //   sample_count = 0;
-  //   last_period = RHYTHM_LAST_PERIOD_DEFAULT;
-  //   // rhythm_count_max = RHYTHM_COUNT_MAX_DEFAULT;
-  // }
 
   // canula/user offline detection
   if (baseline_flat_dur > RHYTHM_OFFLINE_DUR) {
@@ -127,7 +122,7 @@ void rhythm_addval(int val) {
   }
 
   // phase
-  phase_pct = (float)sample_count/(float)last_period;  // phase progression in percent
+  phase_pct = (float)sample_count/last_period_smoothed;  // phase progression in percent
 
 }
 
@@ -136,7 +131,7 @@ bool rhythm_oxygen(int dur_pct) {
   bool ret = false;
   float offset_factor = 1.0;
   // set mode
-  if (dur_pct < 15) {  // when duration is < 10% use quadro mode
+  if (dur_pct < 15) {  // when duration is < 15% use quadro mode
     // mode 4: 4x the oxygen on every 4th inhalation
     duration_pct = dur_pct/25.0;  // convert to 0-1.0, also x4
     oxygen_every = 4;

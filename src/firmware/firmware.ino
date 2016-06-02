@@ -14,10 +14,10 @@
 */
 
 // version
-#define VERSION "0.9.0"
+#define VERSION "0.9.1"
 
 // debug switches
-#define SIMULATE_ALTITUDE 6000.0
+// #define SIMULATE_ALTITUDE 4500
 
 // display pins
 #define sclk 13
