@@ -14,7 +14,10 @@
 */
 
 // version
-#define VERSION "0.8.2"
+#define VERSION "0.9.0"
+
+// debug switches
+#define SIMULATE_ALTITUDE 6000.0
 
 // display pins
 #define sclk 13
@@ -96,8 +99,8 @@ Adafruit_BMP085_Unified bmp = Adafruit_BMP085_Unified(10085);
 #define METERS2FEET 3.28084
 #define OXYGEN_100PCT_FL 300  // FL300
 #define OXYGEN_100PCT_ALTITUDE 9144  // FL300
-int oxygen_start_fls[] = {100, 50}; // FL100, FL50, CAREFUL: length 2 expected
-int oxygen_start_alts[] = {3048, 1524}; // FL100, FL50, CAREFUL: length 2 expected
+int oxygen_start_fls[] = {80, 50}; // FL80, FL50, CAREFUL: length 2 expected
+int oxygen_start_alts[] = {2625, 1524}; // FL80, FL50, CAREFUL: length 2 expected
 uint8_t alt_setting = 0;  // used as index in above arrays
 int oxygen_pct = 0;
 
@@ -206,7 +209,7 @@ void setup(void) {
   // build GUI
   //
   displayText("START", 31, 4, DARKBLUE);
-  displayText("FL100", 64, 4, OXYBLUE);
+  displayText("FL080", 64, 4, OXYBLUE);
   tft.drawLine(94, 7, 127, 7, OXYBLUE);
   // tft.fillRect(124, 8, 4, 48, OXYBLUE);
   tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), OXYBLUE);
@@ -349,7 +352,11 @@ void sense_altitude() {
                                             temperature));
     if (altitude < altitude_smoothed + 20000
         && altitude > altitude_smoothed - 1000) {
+      #ifdef SIMULATE_ALTITUDE
+      altitude_smoothed = SIMULATE_ALTITUDE;
+      #else
       altitude_smoothed = 0.8*altitude_smoothed + 0.2*altitude;
+      #endif
       set_oxygen_pct(altitude_smoothed);
     } else {
       // reject
@@ -367,9 +374,6 @@ void sense_altitude() {
     tft.fillRect(120, 8, 4, 48, BLACK);
     int flheight = map(flight_level, 0, OXYGEN_100PCT_FL, 0, 48);
     tft.fillRect(120, 8+(48-flheight), 4, flheight, WHITE);
-    // tft.fillRect(0, 16 , 5*6, 23, BLACK);
-    // sprintf(charBuf, "%im", altitude);
-    // displayText(charBuf, 0, 16, WHITE);
   } else {
     // Serial.println("Sensor error");
   }

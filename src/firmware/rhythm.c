@@ -44,6 +44,9 @@ uint8_t last_period = RHYTHM_LAST_PERIOD_DEFAULT;
 float phase_pct = 0.0;     // current phase position in percent
 float duration_pct = 0.0;  // oxygenation percentage as requested
 
+bool on_cycle_flag = false;
+uint8_t oxygen_cycle_count = 0;
+uint8_t oxygen_every = 1;
 
 
 void rhythm_addval(int val) {
@@ -130,17 +133,48 @@ void rhythm_addval(int val) {
 
 
 bool rhythm_oxygen(int dur_pct) {
-  duration_pct = dur_pct/100.0;
-  if (baseline_ref_set
-    && phase_pct >= RHYTHM_OFFSET_PCT
-    && phase_pct < (RHYTHM_OFFSET_PCT + duration_pct*RHYTHM_INHALE_PCT)) {
-    // oxygenation phase
-    return true;
+  bool ret = false;
+  float offset_factor = 1.0;
+  // set mode
+  if (dur_pct < 15) {  // when duration is < 10% use quadro mode
+    // mode 4: 4x the oxygen on every 4th inhalation
+    duration_pct = dur_pct/25.0;  // convert to 0-1.0, also x4
+    oxygen_every = 4;
+    offset_factor = 2.0;
+  } else if (dur_pct < 40) {  // when duration is < 40% use double mode
+    // mode 2: twice the oxygen on every other inhalation
+    duration_pct = dur_pct/50.0;  // convert to 0-1.0, also double
+    oxygen_every = 2;
+    offset_factor = 1.5;
   } else {
+    // mode 1: oxygen on every inhaltion
+    duration_pct = dur_pct/100.0;
+    oxygen_every = 1;
+  }
+  // evaluate oxygen yes/no
+  if (baseline_ref_set
+    && phase_pct >= RHYTHM_OFFSET_PCT*offset_factor
+    && phase_pct < (RHYTHM_OFFSET_PCT*offset_factor + duration_pct*RHYTHM_INHALE_PCT)) {
+    // ON state
+    on_cycle_flag = true;
+    // oxygenation phase
+    if ((oxygen_cycle_count % oxygen_every) != 0) {
+      // skip this cycle
+      ret = false;
+    } else {
+      ret = true;
+    }
+  } else {
+    // OFF state
+    if (on_cycle_flag) {
+      oxygen_cycle_count++;
+      on_cycle_flag = false;
+    }
     // inc feature_dedection_delayer, also keep at bay
     if (++feature_dedection_delayer == 128) { feature_dedection_delayer = 0; }
-    return false;
+    ret = false;
   }
+  return ret;
 }
 
 
