@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en-us">
+
+
+<head>
+<meta charset="UTF-8">
+<title>WaveGlide by Nortd Labs</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" type="text/css" href="stylesheets/normalize.css" media="screen">
+<link href='https://fonts.googleapis.com/css?family=Open+Sans:400,700' rel='stylesheet' type='text/css'>
+<link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen">
+<link rel="stylesheet" type="text/css" href="stylesheets/github-light.css" media="screen">
+</head>
+
+
+<body>
+<section class="page-header">
+<h1 class="project-name">WaveGlide</h1>
+<h2 class="project-tagline">An efficient and fully automatic oxygen system for glider pilots.</h2>
+<a href="index.html" class="btn">About</a>
+<a href="build.html" class="btn">Build</a>
+<a href="order.html" class="btn">Buy</a>
+<a href="https://github.com/nortd/WaveGlide" class="btn">View on GitHub</a>
+</section>
+
+
+<section class="main-content">
+
+<h1>
+<a id="waveglide-oxygen-system" class="anchor" href="#waveglide-oxygen-system" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>WaveGlide Oxygen System</h1>
+
+<p>WaveGlide is an automatic oxygen delivery system for glider pilots. It prevents hypoxia at high altitudes by adding oxygen to the inhaled air. Unlike medical constant flow systems it pulses the oxygen supply at the beginning of the breathing cycle and automatically adapts oxygen levels to altitude.</p>
+
+
+<p>The pulsing allows for higher efficiency and consequently smaller oxygen cylinders. This works because the majority of inhaled air does not reach the <a href="https://en.wikipedia.org/wiki/Pulmonary_alveolus">alveoli</a> and gets exhaled unused. The oxygen system therefore only oxygenates the inital air of every inhalation.</p>
+
+<p>Altitude adapdation is crucial as well. The system compensatates for falling O<sub>2</sub> density at altitude by increasing the O<sub>2</sub> content (from the environmental 21% up to 100%). For this it measures the <a href="https://en.wikipedia.org/wiki/Pressure_altitude">pressure altitude</a> and adjusts the length of the oxygen pulse accordingly.</p>
+
+<img src="img/waveglide-system.jpg" alt="system">
+
+<p>The system is specifically designed for high altitude soaring such as mountain wave flying but may be useful in other scenarios. The normal use case is to wear and use the system from the beginning of the flight and let it adjust the optimal oxygen supply levels until landing.</p>
+
+<img src="img/wave-lowi.jpg" alt="wave">
+
+<p><strong>WaveGlide is fully open sourced</strong> and designed with simplicity in mind. This means power users can build, study, and modify the device with relative ease. WaveGlide is not a blackbox you have to trust. All design documents are published in our <a href="https://github.com/nortd/WaveGlide">Github repository</a>.</p>
+
+<h3>
+<a id="status" class="anchor" href="#status" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Status</h3>
+
+<p>This project is in <strong>Beta</strong> phase. Development began in late 2015 and we started flight testing the system in 2016. We hope to conclude the beta phase by the end of 2016 (LOWI gets most mountain waves in fall). Our latest flight was up to FL150 and the system performed as designed. Yet for a very complete system we still have work to do:</p>
+
+<ul>
+  <li>Test operation above FL150.</li>
+  <li>Test operation in cold temperatures.</li>
+  <li>Meassure charging/discharging cycles and fine tune battery indicator.</li>
+  <li>Optimize default oxygen supply/altitude curve.</li>
+  <li>Implement self-dignostics and warning signals.</li>
+</ul>
+
+<p>If you are <strong>interested in participating</strong> during this phase drop us a line (English or German): waveglide {at} nortd {dot} com. You are welcome to join.</p>
+
+
+<h1>
+<a id="background" class="anchor" href="#background" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Background</h1>
+
+<p>WaveGlide development started when I (Stefan Hechenberger) needed a new fun project. A group of us started to develop a serious passion for mountain wave soaring and I was reading everything there was about safty. I also found a fertile ground at the <a href="http://www.segelfliegen-innsbruck.at/">ISV</a> with many experience XC pilots who agreed to do flight testing. One aspect of flying (and specifically soaring) that tends to be chronically overlooked is sub-optimal cognitive performance due to oxygen deprivation at higher altitudes.</p>
+
+<p>To me it seemed clear that most oxygen systems are awkward and expensive. If there was an inexpensive, well designed system, so my logic, people would use oxygen more routinely.</p>
+
+<p>The key part of the system is tracking the user's breathing rhythm. After trying many sensors I found a stellar differential pressure sensor that worked flawlessly. This cumulated in a proof-of-concept and then the first prototype in late 2015. These early systems worked so well that I had to continue ;)</p>
+
+<h2>
+<a id="human-factors" class="anchor" href="#human-factors" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Human Factors</h2>
+
+<p><a href="https://en.wikipedia.org/wiki/Hypoxia_%28medical%29">Hypoxia</a> is a signifficant risk factor in aviation. It affects pilots in adverse ways and the effects often go unnoticed -- <em>You feel great until it's too late</em>. Since hypoxia affects brain function (et alii), all kinds of cognitive processes are less effective. Pilots tend to overlook slow running processes like weather changes, have reduced conditional readiness, generally lack creativity when dealing with unusual situations, have simplistic internal arguments, low level of suspicion, and reduced situational awareness.</p>
+
+<p>The negative effects gradually increase with altitude but are alleviated by the body's ability to compensate for reduced oxygen density. This compensation varies greatly between people. Canonically speaking the first noticable effect is reduced night vision at 1500m (5000'). From 2000m (6500') to 3800m (12500') the body can compensate lower oxygen availability. Above this altitude compensation ceases to be effective. Blood oxygen levels continually go down and cause increasingly more adverse effects. For example, useful time of consciousness (<a href="https://en.wikipedia.org/wiki/Hypoxia_%28medical%29">TUC</a>) in 4500m (15000') can be as low as 30 minutes. After this time, loss of consciousness is not unusual. In 7500m (25000') TUC is down to 4 minutes.</p>
+
+<p>Many more factors skew these simple rules. Different people react differently and do so differently on different days.
+For a more nuanced treatise on the effects of hypoxia and some good arguments to oxygenate early, see <a href="other/nullhypoxie.pdf">Nullhypoxie by Dr. med. Heini Schaffner</a>.</p>
+
+<h2>
+<a id="the-law" class="anchor" href="#the-law" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>The Law</h2>
+
+<p>Most countries base their legal oxygen requirements on FAA's <a href="http://www.faa-aircraft-certification.com/91-211-supplemental-oxygen.html">FAR 91.211</a>: Oxygen must <strong>always</strong> be supplemented <strong>above 14000'</strong> (4267m) and above 12500' (3810m) after a duration of 30 minutes. Depending on country this may or may not apply for glider pilots.</p>
+
+<ul>
+<li>
+<a href="http://www.dg-flugzeugbau.de/sauerstoff-d.html">Gebrauch von Sauerstoff</a> by Steele Lipe</li>
+</ul>
+
+<h2>
+<a id="how-much-oxygen" class="anchor" href="#how-much-oxygen" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>How much Oxygen?</h2>
+
+<p>It depends. The goal is to maintain <strong>blood oxygen saturation above 90%</strong>. This can be measured non-invasively through <a href="https://en.wikipedia.org/wiki/Pulse_oximetry">pulse oxymetry</a>. A pulse oxymeter is a fairly cheap device which measures <a href="https://en.wikipedia.org/wiki/Oxygen_saturation_%28medicine%29">"sats"</a> (SpO<sub>2</sub>) through the skin. We use these measurements to find useful default settings for base supply and altitude adaptation.</p>
+
+<p>As a starting point we use the levels of constant flow systems (1 l/min/10000 ft, see Nullhypoxie by Heini Schaffner) and then optimize by timing the oxygen supply for best absorption.</p>
+
+<p>To account for physiological differences in pilots, WaveGlide has settings to percentually increase/decrease the supply. Our aim is that most pilots can use the system's default setting. To find out what setting assures optimal sats <strong>we recommend</strong> the extensive use of <strong>pulsoxymetry to new users</strong>. This will provide the feedback to fly safely and find the best setting quickly.</p>
+
+<p>Some care has to be taken to get correct measurements. Reduced blood circulation, cold extremities, excessive ambient light, nail polish, and ill-fitting probes can all skew the measurement.</p>
+
+<ul>
+<li><a href="http://www.ncbi.nlm.nih.gov/pubmed/21718156">Pulse Oximetry at High Altitude.</a></li>
+<li><a href="http://www.amperordirect.com/pc/c-pulse-oximeter/z-pulse-oximeter-limitations.html">Limitations in Using a Pulse Oximeter</a></li>
+</ul>
+
+
+<h2>
+<a id="components" class="anchor" href="#components" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Hardware Components</h2>
+
+<p>The oxygen systems is basically an oxygen cylinder which supplies additional oxygen to the pilot in a controlled way. The pressurized oxygen flows to the pilot due to the pressure differential.</p>
+
+<p>At the top of the cylinder is a high pressure valve. This connects to a pressure regulator for controlling the constant flow rate. Then a tube runs to the WaveGlide Controller where a solenoid valve pulses the supply accordingly. The controller does this based on breathing rhythm and pressure altitude.</p>
+
+<p>A nasal oxygen cannula gets the oxygen from the controller to the pilot. The same cannula also measures the minute pressure changes caused by the pilot's respiration.</p>
+
+<p><img src="img/waveglide.png" alt="waveglide"></p>
+
+
+<h3>
+<a id="breathing-sensor" class="anchor" href="#breathing-sensor" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Breathing Sensor</h3>
+
+<p>At the heart of the system is the MPXV7002G differential piezo pressure sensor. It measures the pressure changes caused by the pilots's resipiration. It is able to measure these changes through the same cannula that is being used to supply the oxygen.<p>
+
+<img src="img/cannula-breathing-graph.png" alt="sensor response">
+
+
+<p>See the <a href="bom.html">Bill of Materials</a> for more details on the components.</p>
+
+
+<h2>
+<a id="firmware" class="anchor" href="#firmware" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Firmware Component</h2>
+
+<p>The <a href="https://github.com/nortd/WaveGlide/tree/master/src/firmware">firmware</a> runs on a stipped down Arduino (Adafruit Trinket Pro) and compiles from within the Arduino IDE without dependencies. This means anybody with some programming skills can easily study and extend the device.</p>
+
+<p>No comparable system will provide you with such detailed information of how it operates and behaves. If you want to know how the system detects the breathing rhythm, how it calculates the oxygen pulse durations, or how it measures the altitude, it's all in the code. To  increase legibility and make this in-depth view practical the code is written with a focus on simplicity.</p>
+
+<p>The main files of interest are <a href="https://github.com/nortd/WaveGlide/blob/master/src/firmware/firmware.ino">firmware.ino</a> and <a href="https://github.com/nortd/WaveGlide/blob/master/src/firmware/rhythm.c">rhythm.c</a>. All other files are just responsible to integrate peripherials like pressure sensor, and OLED display.</p>
+
+<img src="img/waveglide-case.jpg" alt="case">
+
+
+<h2>
+<a id="resources" class="anchor" href="#resources" aria-hidden="true"><span aria-hidden="true" class="octicon octicon-link"></span></a>Resources</h2>
+
+<ul>
+<li><a href="http://www.alpenflugzentrum.de/Technik/Artikel/o2.html">Oxygen usage and refilling</a></li>
+<li><a href="http://sgbaselfricktal.ch/sauerstoff-im-segelflug/">Vortrag Dr. med. Schaffner</a></li>
+</ul>
+
+
+<footer class="site-footer">
+  <span class="site-footer-owner"><a href="https://github.com/nortd/WaveGlide">WaveGlide</a> is a <a href="https://github.com/nortd">Nortd Labs</a> project.</span>
+
+  <span class="site-footer-credits" ><strong>Disclaimer:</strong> Nortd Labs does not warrant nor assume any risks whatsoever with regard to the functions and operation of WaveGlide nor does Nortd Labs warrant for any contents of this web site.</span>
+</footer>
+
+</section>
+
+
+</body>
+</html>
