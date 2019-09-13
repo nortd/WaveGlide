@@ -13,6 +13,8 @@
   for more details.
 */
 
+// Developed on Arduino 1.6.9
+
 // version
 #define VERSION "0.9.1"
 

@@ -11,7 +11,7 @@ import serial
 PORT = "/dev/ttyACM0"
 READ_TIMEOUT = 5
 
-s = serial.Serial("/dev/ttyACM1", baudrate=4800)
+s = serial.Serial("/dev/ttyACM0", baudrate=4800)
 
 current_byte = -1
 print_len_last = 0
