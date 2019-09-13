@@ -1,4 +1,4 @@
-update=Thu Sep 12 09:01:48 2019
+update=Fri Sep 13 15:05:20 2019
 version=1
 last_client=kicad
 [general]
@@ -12,10 +12,20 @@ NetIExt=net
 version=1
 LibDir=
 [eeschema/libraries]
+[schematic_editor]
+version=1
+PageLayoutDescrFile=
+PlotDirectoryName=
+SubpartIdSeparator=0
+SubpartFirstId=65
+NetFmtName=Pcbnew
+SpiceAjustPassiveValues=0
+LabSize=50
+ERC_TestSimilarLabels=1
 [pcbnew]
 version=1
 PageLayoutDescrFile=
-LastNetListRead=
+LastNetListRead=WaveGlideNG.net
 CopperLayerCount=2
 BoardThickness=1.6
 AllowMicroVias=0
