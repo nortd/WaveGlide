@@ -280,17 +280,6 @@ F 3 "~" H 8550 3050 50  0001 C CNN
 	0    1    1    0   
 $EndComp
 $Comp
-L Connector_Generic:Conn_01x02 BATCONN1
-U 1 1 5D7CE8BD
-P 7500 4600
-F 0 "BATCONN1" H 7580 4546 50  0000 L CNN
-F 1 "BATCONN" H 7580 4501 50  0001 L CNN
-F 2 "Pin_Headers:Pin_Header_Straight_1x02_Pitch2.54mm" H 7500 4600 50  0001 C CNN
-F 3 "~" H 7500 4600 50  0001 C CNN
-	1    7500 4600
-	1    0    0    -1  
-$EndComp
-$Comp
 L Connector_Generic:Conn_01x02 PIEZOCONN1
 U 1 1 5D7D39D8
 P 7500 5250
@@ -346,7 +335,7 @@ Wire Wire Line
 Wire Wire Line
 	3550 4200 3300 4200
 NoConn ~ 3550 4000
-Text Label 7050 4600 0    50   ~ 0
+Text Label 7050 4550 0    50   ~ 0
 VBAT
 $Comp
 L power:GND #PWR0103
@@ -747,7 +736,7 @@ NoConn ~ 5550 2100
 NoConn ~ 5750 2800
 NoConn ~ 6550 2700
 Wire Wire Line
-	7050 4600 7300 4600
+	7050 4550 7300 4550
 NoConn ~ 1900 2000
 $Comp
 L power:PWR_FLAG #FLG0103
@@ -829,4 +818,26 @@ Wire Wire Line
 	9150 3500 8700 3500
 Wire Wire Line
 	9300 3850 9300 3750
+$Comp
+L Connector_Generic:Conn_01x01 BATCONN1
+U 1 1 5DD86757
+P 7500 4550
+F 0 "BATCONN1" H 7600 4550 50  0001 L CNN
+F 1 "BAT+" H 7600 4550 50  0000 L CNN
+F 2 "WaveGlideNG:VALECONN" H 7500 4550 50  0001 C CNN
+F 3 "~" H 7500 4550 50  0001 C CNN
+	1    7500 4550
+	1    0    0    -1  
+$EndComp
+$Comp
+L Connector_Generic:Conn_01x01 BATCONN2
+U 1 1 5DD872BD
+P 7500 4700
+F 0 "BATCONN2" H 7600 4700 50  0001 L CNN
+F 1 "BAT-" H 7600 4700 50  0000 L CNN
+F 2 "WaveGlideNG:VALECONN" H 7500 4700 50  0001 C CNN
+F 3 "~" H 7500 4700 50  0001 C CNN
+	1    7500 4700
+	1    0    0    -1  
+$EndComp
 $EndSCHEMATC
