@@ -2,7 +2,7 @@
 
   (general
     (thickness 1.6)
-    (drawings 135)
+    (drawings 131)
     (tracks 187)
     (zones 0)
     (modules 24)
@@ -1032,11 +1032,7 @@
   (gr_line (start 102.2 146.2) (end 102.2 140.700001) (layer Dwgs.User) (width 0.2) (tstamp 5D7D5C82))
   (gr_line (start 95.2 146.2) (end 140.200001 146.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5B7D))
   (gr_line (start 76.2 88.2) (end 95.2 88.200001) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5BB9))
-  (gr_circle (center 143.700001 102.2) (end 145.700001 102.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5BE3))
-  (gr_circle (center 98.2 143.2) (end 100.2 143.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5BE6))
   (gr_line (start 95.2 88.200001) (end 95.2 146.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5BF8))
-  (gr_circle (center 99.2 91.2) (end 101.2 91.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5C07))
-  (gr_circle (center 130.200001 143.2) (end 132.200001 143.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5C3A))
   (gr_line (start 148.2 76.200001) (end 76.2 76.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5C49))
   (gr_line (start 148.2 104.2) (end 148.2 76.200001) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5C4F))
   (gr_line (start 76.2 76.2) (end 76.2 88.2) (layer Edge.Cuts) (width 0.2) (tstamp 5D7D5C79))
