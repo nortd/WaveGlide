@@ -9,9 +9,11 @@ import serial
 
 
 PORT = "/dev/ttyACM0"
+BAUDRATE = 4800 # default for YS2000
+# BAUDRATE = 9600
 READ_TIMEOUT = 5
 
-s = serial.Serial("/dev/ttyACM0", baudrate=4800)
+s = serial.Serial(PORT, baudrate=BAUDRATE)
 
 current_byte = -1
 print_len_last = 0
