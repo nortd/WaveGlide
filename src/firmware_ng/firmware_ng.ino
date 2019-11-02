@@ -17,7 +17,7 @@
 
 // version
 #define VERSION "2.0.0"
-#define BLE_ENABLE
+// #define BLE_ENABLE
 
 
 // debug switches
@@ -525,7 +525,7 @@ void handle_pulsoxy(){
       // pulsoxy_sensorOK = (pulsoxy_byte&1<<4)>>4; // 0=OK
       status_bits = (status_bits&0b11101111) | (~pulsoxy_byte&0b00010000); // bit 4 into bit 4, invert
       // pulsoxy_pulseOK = (pulsoxy_byte&1<<5)>>5;  // 0=OK
-      status_bits = (status_bits&0b11110111) | (~pulsoxy_byte&0b00100000); // bit 5 into bit 3, invert
+      status_bits = (status_bits&0b11110111) | ((~pulsoxy_byte&0b00100000)>>2); // bit 5 into bit 3, invert
       pulsoxy_heartratebit7 = (pulsoxy_byte&1<<6)<<1;
       pulseoxy_bcibyte += 1;
     } else if (pulseoxy_bcibyte == 3){

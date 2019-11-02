@@ -1,0 +1,3 @@
+(fp_lib_table
+  (lib (name WaveGlide3X)(type KiCad)(uri ${KIPRJMOD}/WaveGlide3X.pretty)(options "")(descr ""))
+)
