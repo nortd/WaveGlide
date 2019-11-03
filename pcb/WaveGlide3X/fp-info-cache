@@ -1,4 +1,4 @@
-132083817274998
+138383539522998
 Air_Coils_SML_NEOSID
 Neosid_Air-Coil_SML_1turn_HDM0131A
 
@@ -38990,6 +38990,27 @@ RV_Disc_D21.5_W11.4_P10
 0
 0
 WaveGlide3X
+Adafruit_BMP280
+
+
+0
+7
+7
+WaveGlide3X
+Adafruit_Charger_4410
+
+
+0
+5
+5
+WaveGlide3X
+Airtec_M20
+
+
+0
+4
+2
+WaveGlide3X
 DB9HARTING
 617-09681537611
 
@@ -39052,6 +39073,13 @@ VALECONN
 0
 1
 1
+WaveGlide3X
+YS2000
+
+
+0
+9
+9
 WaveGlide3X
 test
 Through hole straight pin header, 1x02, 2.54mm pitch, single row
