@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/noema/Development/git/WaveGlide/pcb/WaveGlide3X/WaveGlide3X.sch)
-    (date "Mon 04 Nov 2019 02:14:38 PM CET")
+    (date "Mon 04 Nov 2019 03:21:08 PM CET")
     (tool "Eeschema 5.1.4-e60b266~84~ubuntu18.04.1")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
@@ -185,7 +185,7 @@
       (tstamp 5E0B47A2))
     (comp (ref AIRTEC1)
       (value AIRTEC)
-      (footprint WaveGlide3X:Airtec_M20_B)
+      (footprint WaveGlide3X:Airtec_M20_B_1MH)
       (datasheet ~)
       (libsource (lib Connector_Generic) (part Conn_01x02) (description "Generic connector, single row, 01x02, script generated (kicad-library-utils/schlib/autogen/connector/)"))
       (sheetpath (names /) (tstamps /))
