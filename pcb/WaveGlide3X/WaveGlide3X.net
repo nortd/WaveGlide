@@ -1,7 +1,7 @@
 (export (version D)
   (design
     (source /home/noema/Development/git/WaveGlide/pcb/WaveGlide3X/WaveGlide3X.sch)
-    (date "Sun 03 Nov 2019 09:15:56 PM CET")
+    (date "Mon 04 Nov 2019 11:13:58 AM CET")
     (tool "Eeschema 5.1.4-e60b266~84~ubuntu18.04.1")
     (sheet (number 1) (name /) (tstamps /)
       (title_block
