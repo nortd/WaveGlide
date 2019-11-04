@@ -80,17 +80,6 @@ F 3 "~" H 10250 1800 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L Mechanical:MountingHole H4
-U 1 1 5D7BDCFB
-P 10250 2200
-F 0 "H4" H 10350 2246 50  0000 L CNN
-F 1 "MountingHole" H 10350 2155 50  0000 L CNN
-F 2 "Mounting_Holes:MountingHole_3.2mm_M3_Pad_Via" H 10250 2200 50  0001 C CNN
-F 3 "~" H 10250 2200 50  0001 C CNN
-	1    10250 2200
-	1    0    0    -1  
-$EndComp
-$Comp
 L Connector_Generic:Conn_01x07 BMP280
 U 1 1 5D7C07D6
 P 3100 4350
@@ -925,10 +914,10 @@ $EndComp
 Text GLabel 6500 4500 0    50   Output ~ 0
 VBAT
 $Comp
-L power:GND #PWR?
+L power:GND #PWR0103
 U 1 1 5E16B2A6
 P 6350 4750
-F 0 "#PWR?" H 6350 4500 50  0001 C CNN
+F 0 "#PWR0103" H 6350 4500 50  0001 C CNN
 F 1 "GND" H 6355 4577 50  0000 C CNN
 F 2 "" H 6350 4750 50  0001 C CNN
 F 3 "" H 6350 4750 50  0001 C CNN
