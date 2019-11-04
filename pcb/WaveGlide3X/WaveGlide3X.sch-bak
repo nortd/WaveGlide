@@ -594,10 +594,6 @@ Wire Wire Line
 Wire Wire Line
 	8900 3800 8900 3950
 Wire Wire Line
-	9350 3950 9650 3950
-Wire Wire Line
-	9650 3950 9650 3800
-Wire Wire Line
 	9350 4350 9550 4350
 Connection ~ 9550 4350
 Wire Wire Line
@@ -714,7 +710,6 @@ Text GLabel 4850 2850 0    50   Input ~ 0
 IN_USER1
 Text GLabel 4850 2950 0    50   Input ~ 0
 IN_USER2
-NoConn ~ 4950 3050
 Text GLabel 4850 3150 0    50   Input ~ 0
 IN_DIFFPRES
 Text GLabel 4850 3250 0    50   Output ~ 0
@@ -872,7 +867,7 @@ U 1 1 5E13A9C6
 P 9450 6000
 F 0 "AIRTEC1" V 9322 6080 50  0000 L CNN
 F 1 "AIRTEC" V 9413 6080 50  0000 L CNN
-F 2 "WaveGlide3X:Airtec_M20" H 9450 6000 50  0001 C CNN
+F 2 "WaveGlide3X:Airtec_M20_B" H 9450 6000 50  0001 C CNN
 F 3 "~" H 9450 6000 50  0001 C CNN
 	1    9450 6000
 	0    1    1    0   
@@ -930,4 +925,49 @@ Wire Wire Line
 	6350 4600 6650 4600
 Wire Wire Line
 	6500 4500 6650 4500
+$Comp
+L Connector_Generic:Conn_02x02_Counter_Clockwise VALVESSR2
+U 1 1 5E210121
+P 10300 3550
+F 0 "VALVESSR2" H 10350 3750 50  0000 C CNN
+F 1 "VALVESSR" H 10350 3676 50  0001 C CNN
+F 2 "WaveGlide3X:SSR" H 10300 3550 50  0001 C CNN
+F 3 "~" H 10300 3550 50  0001 C CNN
+	1    10300 3550
+	0    1    1    0   
+$EndComp
+Wire Wire Line
+	9350 3950 10300 3950
+Wire Wire Line
+	10300 3950 10300 3850
+Wire Wire Line
+	10200 3850 9650 3850
+Wire Wire Line
+	9650 3850 9650 3800
+$Comp
+L Device:R R8
+U 1 1 5E21FDA7
+P 10300 3100
+F 0 "R8" V 10200 3100 50  0000 C CNN
+F 1 "360" V 10300 3100 50  0000 C CNN
+F 2 "Resistors_ThroughHole:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal" V 10230 3100 50  0001 C CNN
+F 3 "~" H 10300 3100 50  0001 C CNN
+	1    10300 3100
+	-1   0    0    1   
+$EndComp
+Wire Wire Line
+	10200 3350 8900 3350
+Wire Wire Line
+	8900 3350 8900 3800
+Connection ~ 8900 3800
+Wire Wire Line
+	10300 3250 10300 3350
+Text GLabel 10300 2850 1    50   Input ~ 0
+OUT_VCONV
+Wire Wire Line
+	10300 2850 10300 2950
+Text GLabel 4850 3050 0    50   Output ~ 0
+OUT_VCONV
+Wire Wire Line
+	4950 3050 4850 3050
 $EndSCHEMATC
