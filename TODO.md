@@ -1,6 +1,8 @@
 
-Beta-02
--------
+Waveglide 3X v3.1
+-----------------
+- feather footprint usb on wrong side
+- BMP120 miso/mosi switched, feather footprint incorrect
 
 
 Beta-01 Issues

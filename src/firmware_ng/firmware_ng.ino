@@ -17,7 +17,8 @@
 
 // version
 #define VERSION "2.0.0"
-// #define BLE_ENABLE
+#define BLE_ENABLE
+#define SPO2_ENABLE
 
 
 // debug switches
@@ -47,7 +48,8 @@
 
 #define user1 15     // DB9 pin4
 #define user2 16     // DB9 pin8
-#define button 16     // DB9 pin8 #TODO
+#define button 16    // DB9 pin8 #TODO
+#define voltconf 17  // A3, if high activates R1.33 and outputs 12V (instead of 5V) on valve
 
 
 #include <SPI.h>
@@ -174,6 +176,7 @@ void setup(void) {
   pinMode(buzzer1, OUTPUT);
   pinMode(buzzer2, OUTPUT);
   pinMode(battery, INPUT);
+  pinMode(voltconf, OUTPUT);
   // analogWrite(buzzer, 150);
   pinMode(led_r, OUTPUT);
   pinMode(led_g, OUTPUT);
@@ -183,6 +186,7 @@ void setup(void) {
   analogWrite(led_g, 240);
   analogWrite(led_b, 200);
 
+  digitalWrite(voltconf, HIGH); // conf valve output to 12V
 
   // check for button held during power up
   bool button_held = false;
@@ -203,11 +207,11 @@ void setup(void) {
   // tft.fillScreen(BLACK);
 
   /* Initialise the barometric sensor */
-  if(!bmp.begin())
-  {
+  while(!bmp.begin()) {
     /* There was a problem detecting the BMP085 ... check your connections */
     // Serial.println("No BMP280 detected.");
-    while(1);
+    tone(buzzer2, NOTE_E3, 500);
+    tone(buzzer2, NOTE_E4, 500);
   }
   //
   // /* Default settings from datasheet. */
@@ -262,7 +266,14 @@ void setup(void) {
   ble.verbose(false);
   #endif
 
+  tone(buzzer2, NOTE_E7, 1000);
+
+  #ifdef SPO2_ENABLE
   Serial1.begin(4800); // RX/TX pins
+  #endif
+
+
+  tone(buzzer2, NOTE_E6, 1000);
 }
 
 
@@ -294,11 +305,19 @@ void loop() {
   }
   #endif
 
+  #ifdef SPO2_ENABLE
   last_pulsoxy_dur = millis()-last_pulsoxy;
   if (last_pulsoxy_dur > 1) {
     handle_pulsoxy();
     last_pulsoxy = millis();
   }
+  #else
+  last_pulsoxy_dur = millis()-last_pulsoxy;
+  if (last_pulsoxy_dur > 1000) {
+    send_status_serial();
+    last_pulsoxy = millis();
+  }
+  #endif
 
   // handle short button press
   // if (!button_short_handled) {
@@ -306,10 +325,12 @@ void loop() {
   //   button_short_handled = true;
   // }
 
+  // #ifdef SPO2_ENABLE
   // // forward YS2000 for debugging
   // if (Serial1.available()) {     // If anything comes in Serial1 (pins 0 & 1)
   //   Serial.write(Serial1.read());   // read it and send it out Serial (USB)
   // }
+  // #endif
 }
 
 
@@ -327,6 +348,8 @@ void sense_breathing() {
   } else {
     digitalWrite(valve, LOW);
   }
+  // display
+  analogWrite(led_b, breathval*10);
 }
 
 
@@ -499,6 +522,7 @@ void handle_ble() {
 #endif
 
 
+#ifdef SPO2_ENABLE
 void handle_pulsoxy(){
   // Serial.print("handle_pulsoxy\n");
   if (Serial1.available()) {
@@ -552,6 +576,8 @@ void handle_pulsoxy(){
     }
   }
 }
+#endif
+
 
 void send_status_serial(){
   // send via usbserial
