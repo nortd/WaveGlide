@@ -16,19 +16,23 @@
 // Developed on Arduino 1.8.5
 
 // version
-#define VERSION "2.0.0"
+#define VERSION "2.0.1"
 #define BLE_ENABLE
 #define SPO2_ENABLE
-
-
-// debug switches
+#define BARO_ENABLE
+#define SERIAL_DEBUG_ENABLE
 // #define SIMULATE_ALTITUDE 4500
 
-// pulseoxy on serial
-#define oxy_rx 0
-#define oxy_tx 1
+#define STATUS_SPO2_LOW 88
+#define STATUS_BAT_LOW 0.3
+#define STATUS_BREATH_LOW 10
+#define STATUS_BREATH_FAST 1000
 
-// baro pins
+// pulseoxy on default serial
+#define spo2_rx 0
+#define spo2_tx 1
+
+// BLE and BARO SPI on default pins
 #define sclk 24
 #define mosi 23
 #define miso 22
@@ -46,9 +50,8 @@
 #define led_r 12     // RGB red
 #define valve 13     // air valve
 
-#define user1 15     // DB9 pin4
-#define user2 16     // DB9 pin8
-#define button 16    // DB9 pin8 #TODO
+#define button1 15   // DB9 pin4, pressed by shorting it to DB9 pin1
+#define button2 16   // DB9 pin8, pressed by shorting it to DB9 pin1
 #define voltconf 17  // A3, if high activates R1.33 and outputs 12V (instead of 5V) on valve
 
 
@@ -60,56 +63,55 @@
 #include "Adafruit_BluefruitLE_SPI.h"
 #include "Adafruit_BluefruitLE_UART.h"
 // #include "Adafruit_Bluefruit_nRF51/BluefruitConfig.h"
-#define FACTORYRESET_ENABLE 1
 #define MINIMUM_FIRMWARE_VERSION "0.6.6"
-#define MODE_LED_BEHAVIOUR_DCON "DISABLE" //"DISABLE", "MODE", "BLEUART", "HWUART", "SPI", "MANUAL"
-#define MODE_LED_BEHAVIOUR_CON "MODE" //"DISABLE", "MODE", "BLEUART", "HWUART", "SPI", "MANUAL"
 Adafruit_BluefruitLE_SPI ble(ble_cs, ble_irq, ble_reset);
-// A small helper
-void error(const __FlashStringHelper*err) {
-  Serial.println(err);
-  while (1);
-}
 uint16_t last_ble = 0;      // for sample timing
 uint16_t last_ble_dur = 0;  // for samble timing
-
-int status_step_ble = 0;
+uint8_t status_step_ble = 0;
 #endif
+bool ble_OK = false;
 
-// status bits, 0-6 (ASCII range)
-// (_, signalOK, probeOK, sensorOK, pulseOK, batLOW, spo2LOW, _)
-char status_bits = 0;
-int status_step_serial = 0;
-
+uint16_t last_serial = 0;
+uint16_t last_serial_dur = 0;
+uint8_t status_step_serial = 0;
 
 // pulsoxy
 uint16_t last_pulsoxy = 0;      // for sample timing
 uint16_t last_pulsoxy_dur = 0;  // for samble timing
-int pulsoxy_frame_count = 0;
+uint8_t pulsoxy_frame_count = 0;
 // frame data
-int pulsoxy_byte = 0;
-int pulsoxy_syncbit = 0;
-int pulseoxy_bcibyte = 0;
-int pulsoxy_signalstrength = 0;
+uint8_t pulsoxy_byte = 0;
+uint8_t pulsoxy_syncbit = 0;
+uint8_t pulseoxy_bcibyte = 0;
+uint8_t pulsoxy_signalstrength = 0;
 // int pulsoxy_signalOK = 1;
 // int pulsoxy_probeOK = 1;
 // int pulsoxy_pulsebeep = 1;
-int pulsoxy_pleth = 0;
+uint8_t pulsoxy_pleth = 0;
 // int pulsoxy_bargraph = 0;
 // int pulsoxy_sensorOK = 1;
 // int pulsoxy_pulseOK = 1;
-int pulsoxy_heartratebit7 = 0;
-int pulsoxy_heartrate = 0;
-int pulsoxy_spo2 = 0;
+uint8_t pulsoxy_heartratebit7 = 0;
+uint8_t pulsoxy_heartrate = 0;
+uint8_t pulsoxy_spo2 = 0;
+// status bits, 0-6 (ASCII range)
+// (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
+// // signalOK ... any signal from probe
+// // probeOK ... finger probe connected
+// // sensorOK ... finger in probe
+// // pulseOK ... reading a hr/spo2
+// // pulsoxyOK ... serial to module connected
+char pulsoxy_status_bits = 0;
+// frame fields to push them to serial/ble in a consistent state
+uint8_t frame_pulsoxy_signalstrength = 0;
+uint8_t frame_pulsoxy_heartrate = 0;
+uint8_t frame_pulsoxy_spo2 = 0;
+char frame_pulsoxy_status_bits = 0;
 
-
-// #include <Wire.h>
-// #include "Adafruit_Sensor.h"
 
 extern "C" {
   #include "rhythm.h"
   #include "pitches.h"
-  // #include "bitmaps.c"
 }
 
 // breathing sensor
@@ -124,45 +126,68 @@ int temperature = 0;
 int altitude = 0;  // pressure alt in m (based on 1013 hPa)
 float altitude_smoothed = 0;
 int flight_level = 0;  // in feet /100
+#ifdef BARO_ENABLE
 // barometric sensor via SPI
 Adafruit_BMP280 bmp(baro_cs);
+#endif
 
 // oxygen setting related
 #define METERS2FEET 3.28084
 #define OXYGEN_100PCT_FL 300  // FL300
 #define OXYGEN_100PCT_ALTITUDE 9144  // FL300
-int oxygen_start_fls[] = {80, 50}; // FL80, FL50, CAREFUL: length 2 expected
 int oxygen_start_alts[] = {2625, 1524}; // FL80, FL50, CAREFUL: length 2 expected
 uint8_t alt_setting = 1;  // used as index in above arrays
-int oxygen_pct = 0;
+int oxygen_pct = 0; // [0,100]
+int oxygen_total_ms = 0;
+uint16_t last_oxygen_on = 0;
 
 // battery voltage monitoring
 uint16_t last_sense_battery = 0;
 uint16_t last_sense_battery_dur = 0;
 float bat_pct = 0.9;
-// uint16_t bat_col = WHITE;
-uint16_t bat_col = 0;
+
+// general status bits
+// (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
+// // bleFAIL ... SPI to module failure
+// // baroFAIL ... SPI to module failure
+// // breathFAST ... breathing rhythm is very fast
+// // breathLOW ... breathing amplitude is very low
+// // batLOW ... battery is running low
+// // spo2LOW ... blood oxygen is very low
+char status_bits = 0;
+
+// buttons
+volatile bool button1_short_handled = true;
+volatile uint16_t last_button1 = 0;
+volatile uint16_t last_button1_dur = 0;
+bool button1_state = LOW;
+volatile bool button2_short_handled = true;
+volatile uint16_t last_button2 = 0;
+volatile uint16_t last_button2_dur = 0;
+bool button2_state = LOW;
 
 // interface
-volatile bool button_short_handled = true;
-volatile uint16_t last_button = 0;
-volatile uint16_t last_button_dur = 0;
-bool state = LOW;
 // adjustment percentages, applied to oxygen_pct
 float adj_pcts[] = {0.7, 1.0, 1.3, 100.0};  // CAREFUL: length 4 expected
 // uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 uint8_t adj_setting = 3;  // will be 1 after registering interrupt
-#define SAMPLES_GRAPH_WIDTH 128
-uint8_t samplepos = 0;
-// char charBuf[50];
 
 
-void onButton() {
-  state = !state;
-  last_button_dur = millis()-last_button;
-  last_button = millis();
-  if (state && last_button_dur > 40) {  // filter bounces
-    button_short_handled = false;
+void onButton1() {
+  button1_state = !button1_state;
+  last_button1_dur = millis()-last_button1;
+  last_button1 = millis();
+  if (button1_state && last_button1_dur > 40) {  // filter bounces
+    button1_short_handled = false;
+  }
+}
+
+void onButton2() {
+  button2_state = !button2_state;
+  last_button2_dur = millis()-last_button2;
+  last_button2 = millis();
+  if (button2_state && last_button2_dur > 40) {  // filter bounces
+    button2_short_handled = false;
   }
 }
 
@@ -171,105 +196,94 @@ void onButton() {
 void setup(void) {
   // analogReference(EXTERNAL);
   pinMode(breath, INPUT);
-  // pinMode(button, INPUT_PULLUP);
-  pinMode(valve, OUTPUT);
   pinMode(buzzer1, OUTPUT);
   pinMode(buzzer2, OUTPUT);
   pinMode(battery, INPUT);
-  pinMode(voltconf, OUTPUT);
-  // analogWrite(buzzer, 150);
   pinMode(led_r, OUTPUT);
   pinMode(led_g, OUTPUT);
   pinMode(led_b, OUTPUT);
+  pinMode(valve, OUTPUT);
+  pinMode(button1, INPUT_PULLUP);
+  pinMode(button2, INPUT_PULLUP);
+  pinMode(voltconf, OUTPUT);
 
+  // turn on status rgb led
   analogWrite(led_r, 255);
   analogWrite(led_g, 240);
   analogWrite(led_b, 200);
 
-  digitalWrite(voltconf, HIGH); // conf valve output to 12V
+  // set valve voltage to 12V
+  digitalWrite(voltconf, HIGH);
 
   // check for button held during power up
-  bool button_held = false;
-  if (!digitalRead(button)) { // pressed
-    button_held = true;
+  bool button1_held = false;
+  if (!digitalRead(button1)) { // pressed
+    button1_held = true;
+  }
+  bool button2_held = false;
+  if (!digitalRead(button2)) { // pressed
+    button2_held = true;
   }
 
+  // init buzzer
   digitalWrite(buzzer1, LOW);
-  // tone(buzzer1, 5000, 1000);
   tone(buzzer2, NOTE_E8, 1000);
 
+  #ifdef SERIAL_DEBUG_ENABLE
   // while (!Serial);  // necessary to get Serial
-  // delay(1500);       // working right away
+  // delay(1000);      // working right away
   Serial.begin(9600);  // USB
-  // Serial.println("init");
-  // tft.begin();
-  //tft.setRotation(1);  // 1: 90 clockwise, 2: 180, 3: 270
-  // tft.fillScreen(BLACK);
+  #endif
 
-  /* Initialise the barometric sensor */
-  while(!bmp.begin()) {
-    /* There was a problem detecting the BMP085 ... check your connections */
-    // Serial.println("No BMP280 detected.");
-    tone(buzzer2, NOTE_E3, 500);
-    tone(buzzer2, NOTE_E4, 500);
+  // Initialise the barometric sensor */
+  if(bmp.begin()) {
+    // set baroOK bit to TRUE
+    // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
+    status_bits = status_bits|0b00010000;
   }
-  //
-  // /* Default settings from datasheet. */
-  // bmp.setSampling(Adafruit_BMP280::MODE_NORMAL,     /* Operating Mode. */
-  //                 Adafruit_BMP280::SAMPLING_X2,     /* Temp. oversampling */
-  //                 Adafruit_BMP280::SAMPLING_X16,    /* Pressure oversampling */
-  //                 Adafruit_BMP280::FILTER_X16,      /* Filtering. */
-  //                 Adafruit_BMP280::STANDBY_MS_500); /* Standby time. */
-
 
   // set alt mode
-  if (button_held) {
+  if (button1_held) {
     // If button was helled during power-up set to next alt mode.
     // Specifically this means oxygenation starts at a higher alt.
     alt_setting++;
     if (alt_setting >= 2) { alt_setting = 0; }
-    // sprintf(charBuf, "FL%03i", oxygen_start_fls[alt_setting]);
-    // // draw
-    // if (alt_setting == 0) {
-    //   tft.fillRect(63, 4, 32, 7, BLACK);
-    //   displayText(charBuf, 64, 4, OXYBLUE);
-    //   tft.fillRect(124, 8, 4, 48, OXYBLUE);
-    // } else if (alt_setting == 1) {
-    //   tft.fillRect(63, 4, 32, 7, OXYBLUE);
-    //   displayText(charBuf, 64, 4, BLACK);
-    //   tft.fillRect(124, 8, 4, 48, BLACK);
-    //   tft.fillRect(124, 8, 4, map(oxygen_start_fls[alt_setting], 0, OXYGEN_100PCT_FL, 48, 0), OXYBLUE);
-    // }
+  }
+
+  if (button2_held) {
+    // TODO: RESET
   }
 
   // enable button interrupt
-  // attachInterrupt(digitalPinToInterrupt(button), onButton, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(button1), onButton1, CHANGE);
+  attachInterrupt(digitalPinToInterrupt(button2), onButton2, CHANGE);
+
 
   #ifdef BLE_ENABLE
-  // Serial.print(F("Initialising the Bluefruit LE module: "));
   // if ( !ble.begin(VERBOSE_MODE) ) {
-  if ( !ble.begin() ) {
-    error(F("Couldn't find Bluefruit, make sure it's in CoMmanD mode & check wiring?"));
+  if (ble.begin()) {
+    // set bleOK bit to TRUE
+    // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
+    status_bits = status_bits|0b00100000;
   }
-  // Serial.println( F("OK!") );
-
-  if ( FACTORYRESET_ENABLE ) {
-    // Serial.println(F("Performing a factory reset: "));
-    if ( ! ble.factoryReset() ){
-      error(F("Couldn't factory reset"));
-    }
-    // Serial.println( F("OK!") );
+  if (!ble.factoryReset()) {
+    // set bleOK bit to FALSE
+    status_bits = status_bits&0b11011111;
   }
-
   ble.echo(false);
   // ble.info();
   ble.verbose(false);
   #endif
 
+
   tone(buzzer2, NOTE_E7, 1000);
 
+
   #ifdef SPO2_ENABLE
-  Serial1.begin(4800); // RX/TX pins
+  Serial1.begin(4800);  // RX/TX pins
+  // set pulsoxyOK bit to TRUE
+  // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
+  pulsoxy_status_bits = pulsoxy_status_bits|0b00000100;
   #endif
 
 
@@ -285,23 +299,17 @@ void loop() {
     last_sense_breathing = millis();
   }
 
-  last_sense_altitude_dur = millis()-last_sense_altitude;
-  if (last_sense_altitude_dur > RHYTHM_TEMPRES*20) {
-    sense_altitude();
-    last_sense_altitude = millis();
-  }
-
   last_sense_battery_dur = millis()-last_sense_battery;
   if (last_sense_battery_dur > RHYTHM_TEMPRES*30) {
     sense_battery();
     last_sense_battery = millis();
   }
 
-  #ifdef BLE_ENABLE
-  last_ble_dur = millis()-last_ble;
-  if (last_ble_dur > 300) {
-    handle_ble();
-    last_ble = millis();
+  #ifdef BARO_ENABLE
+  last_sense_altitude_dur = millis()-last_sense_altitude;
+  if (last_sense_altitude_dur > RHYTHM_TEMPRES*20) {
+    sense_altitude();
+    last_sense_altitude = millis();
   }
   #endif
 
@@ -311,26 +319,38 @@ void loop() {
     handle_pulsoxy();
     last_pulsoxy = millis();
   }
-  #else
-  last_pulsoxy_dur = millis()-last_pulsoxy;
-  if (last_pulsoxy_dur > 1000) {
-    send_status_serial();
-    last_pulsoxy = millis();
+  #endif
+
+  #ifdef BLE_ENABLE
+  last_ble_dur = millis()-last_ble;
+  if (last_ble_dur > 300) {
+    handle_ble();
+    last_ble = millis();
   }
   #endif
 
-  // handle short button press
-  // if (!button_short_handled) {
-  //   handle_short_button();
-  //   button_short_handled = true;
-  // }
+  #ifdef SERIAL_DEBUG_ENABLE
+  last_serial_dur = millis()-last_serial;
+  if (last_serial_dur > 1000) {
+    send_status_serial();
+    last_serial = millis();
+  }
+  #endif
 
-  // #ifdef SPO2_ENABLE
+  // handle short button presses
+  if (!button1_short_handled) {
+    handle_short_button1();
+    button1_short_handled = true;
+  }
+  if (!button2_short_handled) {
+    handle_short_button2();
+    button2_short_handled = true;
+  }
+
   // // forward YS2000 for debugging
   // if (Serial1.available()) {     // If anything comes in Serial1 (pins 0 & 1)
   //   Serial.write(Serial1.read());   // read it and send it out Serial (USB)
   // }
-  // #endif
 }
 
 
@@ -344,16 +364,22 @@ void sense_breathing() {
   if (val < -12) { val = -12; }
   // if (!baseline_set()) { graph_col = DARKBLUE; }
   if (rhythm_oxygen(oxygen_pct)) {
-    digitalWrite(valve, HIGH);
+    if (!digitalRead(valve)) {
+      digitalWrite(valve, HIGH);
+      last_oxygen_on = millis();
+    }
   } else {
-    digitalWrite(valve, LOW);
+    if (digitalRead(valve)) {
+      digitalWrite(valve, LOW);
+      oxygen_total_ms += (millis()-last_oxygen_on);
+    }
   }
   // display
   analogWrite(led_b, breathval*10);
 }
 
 
-
+#ifdef BARO_ENABLE
 void sense_altitude() {
     temperature = round(bmp.readTemperature());
     altitude = bmp.readAltitude(1013.25);
@@ -375,6 +401,7 @@ void sense_altitude() {
     flight_level = round((altitude_smoothed * METERS2FEET)/100);
     flight_level = constrain(flight_level, 0, OXYGEN_100PCT_FL);
 }
+#endif
 
 
 
@@ -462,15 +489,26 @@ void sense_battery() {
   }
   // smooth in
   bat_pct = 0.8*bat_pct + 0.2*newbat_pct;
+  // set battery low bit
+  if (bat_pct < STATUS_BAT_LOW) {
+    // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
+    status_bits = status_bits|0b00000010;
+  } else {
+    status_bits = status_bits&0b11111101;
+  }
 }
 
 
 
-void handle_short_button() {
+void handle_short_button1() {
   adj_setting++;
   if (adj_setting >= 4) { adj_setting = 0; }
   // update oxygen_pct
   set_oxygen_pct(altitude_smoothed);
+}
+
+void handle_short_button2() {
+  // NOT USED
 }
 
 
@@ -481,50 +519,25 @@ void handle_ble() {
     // LED Activity command is only supported from 0.6.6
     if (ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION)) {
       // Change Mode LED Activity
-      // Serial.println(F("Change LED activity to " MODE_LED_BEHAVIOUR_CON));
-      ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR_CON);
+      // "DISABLE", "MODE", "BLEUART", "HWUART", "SPI", "MANUAL"
+      ble.sendCommandCheckOK("AT+HWModeLED=MODE");
     }
     ble.setMode(BLUEFRUIT_MODE_DATA);
   } else {
     // LED Activity command is only supported from 0.6.6
     if ( ble.isVersionAtLeast(MINIMUM_FIRMWARE_VERSION) ) {
       // Change Mode LED Activity
-      // Serial.println(F("Change LED activity to " MODE_LED_BEHAVIOUR_DCON));
-      ble.sendCommandCheckOK("AT+HWModeLED=" MODE_LED_BEHAVIOUR_DCON);
+      // "DISABLE", "MODE", "BLEUART", "HWUART", "SPI", "MANUAL"
+      ble.sendCommandCheckOK("AT+HWModeLED=DISABLE");
     }
   }
-  // Handle BLE tx
-  // ble.print(inputs);
-  // ble.print("+\n");
-
   send_status_ble();
-  // ble.print(oxygen_pct);
-  // ble.print("% ");
-  // ble.print(altitude);
-  // ble.print("m ");
-  // ble.print(round(bat_pct*100));
-  // ble.print("bat ");
-  // ble.print("\n");
-
-  // Handle BLE rx
-  // while (ble.available()) {
-  //   int c = ble.read();
-  //
-  //   Serial.print((char)c);
-  //
-  //   // Hex output too, helps w/debugging!
-  //   // Serial.print(" [0x");
-  //   // if (c <= 0xF) Serial.print(F("0"));
-  //   // Serial.print(c, HEX);
-  //   // Serial.print("] ");
-  // }
 }
 #endif
 
 
 #ifdef SPO2_ENABLE
 void handle_pulsoxy(){
-  // Serial.print("handle_pulsoxy\n");
   if (Serial1.available()) {
     pulsoxy_byte = Serial1.read();
     pulsoxy_syncbit = (pulsoxy_byte&1<<7)>>7;
@@ -532,13 +545,13 @@ void handle_pulsoxy(){
       pulseoxy_bcibyte = 0;
     }
     // parse bytes
-    // status_bits ... (_, signalOK, probeOK, sensorOK, pulseOK, batLOW, spo2LOW, _)
+    // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
     if (pulseoxy_bcibyte == 0) {
       pulsoxy_signalstrength = pulsoxy_byte&7;  // 3 bits, 0-7
       // pulsoxy_signalOK = (pulsoxy_byte&1<<4)>>4; // 0=OK
-      status_bits = (status_bits&0b10111111) | ((~pulsoxy_byte&0b00010000)<<2); // bit 4 into bit 6, invert
+      pulsoxy_status_bits = (pulsoxy_status_bits&0b10111111) | ((~pulsoxy_byte&0b00010000)<<2); // bit 4 into bit 6, invert
       // pulsoxy_probeOK = (pulsoxy_byte&1<<5)>>5; // 0=CONNECTED
-      status_bits = (status_bits&0b11011111) | (~pulsoxy_byte&0b00100000); // bit 5 into bit 5, invert
+      pulsoxy_status_bits = (pulsoxy_status_bits&0b11011111) | (~pulsoxy_byte&0b00100000); // bit 5 into bit 5, invert
       // pulsoxy_pulsebeep = (pulsoxy_byte&1<<6)>>6;
       pulseoxy_bcibyte += 1;
     } else if (pulseoxy_bcibyte == 1){
@@ -547,9 +560,9 @@ void handle_pulsoxy(){
     } else if (pulseoxy_bcibyte == 2){
       // pulsoxy_bargraph = pulsoxy_byte&7;
       // pulsoxy_sensorOK = (pulsoxy_byte&1<<4)>>4; // 0=OK
-      status_bits = (status_bits&0b11101111) | (~pulsoxy_byte&0b00010000); // bit 4 into bit 4, invert
+      pulsoxy_status_bits = (pulsoxy_status_bits&0b11101111) | (~pulsoxy_byte&0b00010000); // bit 4 into bit 4, invert
       // pulsoxy_pulseOK = (pulsoxy_byte&1<<5)>>5;  // 0=OK
-      status_bits = (status_bits&0b11110111) | ((~pulsoxy_byte&0b00100000)>>2); // bit 5 into bit 3, invert
+      pulsoxy_status_bits = (pulsoxy_status_bits&0b11110111) | ((~pulsoxy_byte&0b00100000)>>2); // bit 5 into bit 3, invert
       pulsoxy_heartratebit7 = (pulsoxy_byte&1<<6)<<1;
       pulseoxy_bcibyte += 1;
     } else if (pulseoxy_bcibyte == 3){
@@ -564,12 +577,18 @@ void handle_pulsoxy(){
     } else if (pulseoxy_bcibyte == 6){
       // not used
       pulseoxy_bcibyte = -1;
-      pulsoxy_frame_count += 1;
-      if (pulsoxy_frame_count > 10) {
-        #ifndef BLE_ENABLE
-        send_status_serial();
-        #endif
-        pulsoxy_frame_count = 0;
+      // end of pulsoxy frame
+      // push all pulsoxy frame data
+      frame_pulsoxy_signalstrength = pulsoxy_signalstrength;
+      frame_pulsoxy_heartrate = pulsoxy_heartrate;
+      frame_pulsoxy_spo2 = pulsoxy_spo2;
+      frame_pulsoxy_status_bits = pulsoxy_status_bits;
+      // set spo2LOW bit
+      if (pulsoxy_spo2 < STATUS_SPO2_LOW) {
+        // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
+        status_bits = status_bits|0b00000001;
+      } else {
+        status_bits = status_bits&0b11111110;
       }
     } else {
       // out of sync
@@ -583,85 +602,140 @@ void send_status_serial(){
   // send via usbserial
   // for Arduino serial plotter
   if (status_step_serial == 0) {
-    Serial.print(oxygen_pct);
+    Serial.print(rhythm_get_strength());
     Serial.print("\t");
     status_step_serial += 1;
   } else if (status_step_serial == 1) {
-    Serial.print(flight_level);
+    Serial.print(rhythm_get_period_ms());
     Serial.print("\t");
     status_step_serial += 1;
   } else if (status_step_serial == 2) {
-    Serial.print(round(bat_pct*100));
+    Serial.print(oxygen_pct);
     Serial.print("\t");
     status_step_serial += 1;
   } else if (status_step_serial == 3) {
-    Serial.print(pulsoxy_signalstrength);
+    Serial.print(oxygen_total_ms);
     Serial.print("\t");
     status_step_serial += 1;
   } else if (status_step_serial == 4) {
-    Serial.print(pulsoxy_pleth);
+    Serial.print(flight_level);
     Serial.print("\t");
     status_step_serial += 1;
   } else if (status_step_serial == 5) {
-    Serial.print(pulsoxy_heartrate);
+    Serial.print(round(bat_pct*100));
     Serial.print("\t");
     status_step_serial += 1;
   } else if (status_step_serial == 6) {
-    Serial.print(pulsoxy_spo2);
+    Serial.print(frame_pulsoxy_signalstrength);
     Serial.print("\t");
     status_step_serial += 1;
   } else if (status_step_serial == 7) {
-    // explode status bits, map to 0 and 255 for visible plotting
-    // status_bits ... (_, signalOK, probeOK, sensorOK, pulseOK, batLOW, spo2LOW, _)
+    Serial.print(frame_pulsoxy_heartrate);
+    Serial.print("\t");
+    status_step_serial += 1;
+  } else if (status_step_serial == 8) {
+    Serial.print(frame_pulsoxy_spo2);
+    Serial.print("\t");
+    status_step_serial += 1;
+  } else if (status_step_serial == 9) {
+    // explode status bits, map to 0 and 100 for visible plotting
+    // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
     //signalOK
-    Serial.print(map((status_bits&0b01000000)>>6, 0, 1, 0, 255));
+    Serial.print(map((frame_pulsoxy_status_bits&0b01000000)>>6, 0, 1, 0, 100));
     Serial.print("\t");
     //probeOK
-    Serial.print(map((status_bits&0b00100000)>>5, 0, 1, 0, 255));
+    Serial.print(map((frame_pulsoxy_status_bits&0b00100000)>>5, 0, 1, 0, 100));
     Serial.print("\t");
     //sensorOK
-    Serial.print(map((status_bits&0b00010000)>>4, 0, 1, 0, 255));
+    Serial.print(map((frame_pulsoxy_status_bits&0b00010000)>>4, 0, 1, 0, 100));
     Serial.print("\t");
     //pulseOK
-    Serial.print(map((status_bits&0b00001000)>>3, 0, 1, 0, 255));
+    Serial.print(map((frame_pulsoxy_status_bits&0b00001000)>>3, 0, 1, 0, 100));
+    Serial.print("\t");
+    //pulsoxyOK
+    Serial.print(map((frame_pulsoxy_status_bits&0b00000100)>>2, 0, 1, 0, 100));
+    Serial.print("\t");
+    status_step_serial += 1;
+  } else if (status_step_serial == 10) {
+    // explode status bits, map to 0 and 100 for visible plotting
+    // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
+    // set breathLOW bit
+    if (rhythm_get_strength() < STATUS_BREATH_LOW) {
+      status_bits = status_bits|0b00000100;
+    } else {
+      status_bits = status_bits&0b11111011;
+    }
+    // set breathLOW bit
+    if (rhythm_get_period_ms() < STATUS_BREATH_FAST) {
+      status_bits = status_bits|0b00001000;
+    } else {
+      status_bits = status_bits&0b11110111;
+    }
+    //bleFAIL
+    Serial.print(map((status_bits&0b00100000)>>5, 0, 1, 0, 100));
+    Serial.print("\t");
+    //baroFAIL
+    Serial.print(map((status_bits&0b00010000)>>4, 0, 1, 0, 100));
+    Serial.print("\t");
+    //breathFAST
+    Serial.print(map((status_bits&0b00001000)>>3, 0, 1, 0, 100));
+    Serial.print("\t");
+    //breathLOW
+    Serial.print(map((status_bits&0b00000100)>>2, 0, 1, 0, 100));
+    Serial.print("\t");
+    //batLOW
+    Serial.print(map((status_bits&0b00000010)>>1, 0, 1, 0, 100));
+    Serial.print("\t");
+    //spo2LOW
+    Serial.print(map((status_bits&0b00000001), 0, 1, 0, 100));
     Serial.println("\t");  // println since last
     status_step_serial = 0;  // start over
   }
 }
 
 #ifdef BLE_ENABLE
-void send_status_ble(){
+void send_status_ble() {
   if (ble.isConnected()) {
-    // send via BLE
     if (status_step_ble == 0) {
-      ble.print(oxygen_pct);
+      ble.print(rhythm_get_strength());
       ble.print("\t");
       status_step_ble += 1;
     } else if (status_step_ble == 1) {
-      ble.print(flight_level);
+      ble.print(rhythm_get_period_ms());
       ble.print("\t");
       status_step_ble += 1;
     } else if (status_step_ble == 2) {
-      ble.print(round(bat_pct*100));
+      ble.print(oxygen_pct);
       ble.print("\t");
       status_step_ble += 1;
     } else if (status_step_ble == 3) {
-      ble.print(pulsoxy_signalstrength);
+      ble.print(oxygen_total_ms);
       ble.print("\t");
       status_step_ble += 1;
     } else if (status_step_ble == 4) {
-      ble.print(pulsoxy_pleth);
+      ble.print(flight_level);
       ble.print("\t");
       status_step_ble += 1;
     } else if (status_step_ble == 5) {
-      ble.print(pulsoxy_heartrate);
+      ble.print(round(bat_pct*100));
       ble.print("\t");
       status_step_ble += 1;
     } else if (status_step_ble == 6) {
-      ble.print(pulsoxy_spo2);
+      ble.print(frame_pulsoxy_signalstrength);
+      ble.print("\t");
+    } else if (status_step_ble == 7) {
+      ble.print(frame_pulsoxy_heartrate);
+      ble.print("\t");
+    } else if (status_step_ble == 8) {
+      ble.print(frame_pulsoxy_spo2);
+      ble.print("\t");
+    } else if (status_step_ble == 9) {
+      // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
+      ble.print(frame_pulsoxy_status_bits);
       ble.print("\t");
       status_step_ble += 1;
-    } else if (status_step_ble == 7) {
+    } else if (status_step_ble == 10) {
+      // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
       ble.println(status_bits);
       status_step_ble = 0;  // start over
     }

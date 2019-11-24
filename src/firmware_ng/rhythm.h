@@ -18,14 +18,16 @@
 #define rhythm_h
 
 #define RHYTHM_TEMPRES 100  // temporal resolution in ms
+#define BREATH_STRENGTH_100 20  // what is considered 100%
 
 // void rhythm_init();
 
 void rhythm_addval(int val);
 bool rhythm_oxygen(int dur_pct);
-uint8_t rhythm_get_period();
-uint8_t rhythm_get_phase();
+int rhythm_get_period_ms();
+int rhythm_get_phase_ms();
 bool baseline_set();
 int rhythm_get_baseline();
+uint8_t rhythm_get_strength();  // average recent breath amplitude mapped to 0-100
 
 #endif

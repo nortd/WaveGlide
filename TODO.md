@@ -3,6 +3,17 @@ Waveglide 3X v3.1
 -----------------
 - feather footprint usb on wrong side
 - BMP120 miso/mosi switched, feather footprint incorrect
+- YS2000 vcc/gnd inverted
+- PCB top-right corner needs to go, left-top lower corner
+- case
+  - db9 cutout
+  - mounts, screws
+    - 3.2mm -> 3.4mm
+    - 5.6mm -> 5.8mm
+  - seams
+    - lift waterline
+  - vents
+    - funnel
 
 
 Beta-01 Issues

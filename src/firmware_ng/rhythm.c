@@ -49,6 +49,7 @@ bool on_cycle_flag = false;
 uint8_t oxygen_cycle_count = 0;
 uint8_t oxygen_every = 1;
 
+float breath_strength = 0;
 
 void rhythm_addval(int val) {
   // find feature and calculate period and phase
@@ -72,6 +73,9 @@ void rhythm_addval(int val) {
     baseline_last_ref = val;
     baseline_last_tol = RHYTHM_BASELINE_TOL_LOW;
   }
+
+  // calc strength
+  breath_strength = 0.8*breath_strength + 0.2*abs(val-baseline);
 
   // add val to vals
   vals[vals_cursor] = val;
@@ -174,12 +178,12 @@ bool rhythm_oxygen(int dur_pct) {
 
 
 
-uint8_t rhythm_get_period() {
-  return last_period;
+int rhythm_get_period_ms() {
+  return last_period*RHYTHM_TEMPRES;
 }
 
-uint8_t rhythm_get_phase() {
-  return sample_count;
+int rhythm_get_phase_ms() {
+  return sample_count*RHYTHM_TEMPRES;
 }
 
 bool baseline_set() {
@@ -188,4 +192,11 @@ bool baseline_set() {
 
 int rhythm_get_baseline() {
   return baseline;
+}
+
+uint8_t rhythm_get_strength() {
+  // map [0,BREATH_STRENGTH_100] to [0,100]
+  if (breath_strength > BREATH_STRENGTH_100) {return 100;}
+  else if (breath_strength < 0) {return 0;}
+  else {return round((100*breath_strength)/BREATH_STRENGTH_100);}
 }
