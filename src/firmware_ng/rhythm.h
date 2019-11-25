@@ -27,6 +27,7 @@ bool rhythm_oxygen(int dur_pct);
 int rhythm_get_period_ms();
 int rhythm_get_phase_ms();
 bool baseline_set();
+int get_baseline();
 int rhythm_get_baseline();
 uint8_t rhythm_get_strength();  // average recent breath amplitude mapped to 0-100
 

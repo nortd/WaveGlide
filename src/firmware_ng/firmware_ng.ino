@@ -25,8 +25,16 @@
 
 #define STATUS_SPO2_LOW 88
 #define STATUS_BAT_LOW 0.3
-#define STATUS_BREATH_LOW 10
+#define STATUS_BREATH_LOW 15
 #define STATUS_BREATH_FAST 1000
+
+#define C_BLUE 0x0033ff
+#define C_GREEN 0x44ff44
+#define C_YELLOW 0xffff00
+#define C_ORANGE 0xff7700
+#define C_RED 0xff0000
+#define C_PINK 0xff00ff
+#define C_BLACK 0x000000
 
 // pulseoxy on default serial
 #define spo2_rx 0
@@ -118,6 +126,7 @@ extern "C" {
 uint16_t last_sense_breathing = 0;      // for sample timing
 uint16_t last_sense_breathing_dur = 0;  // for samble timing
 int breathval = 0;
+bool valve_on = false;
 
 // altitude sensor
 uint16_t last_sense_altitude = 0;
@@ -142,6 +151,7 @@ int oxygen_total_ms = 0;
 uint16_t last_oxygen_on = 0;
 
 // battery voltage monitoring
+void sense_battery(bool noSmooth=false);
 uint16_t last_sense_battery = 0;
 uint16_t last_sense_battery_dur = 0;
 float bat_pct = 0.9;
@@ -172,6 +182,10 @@ float adj_pcts[] = {0.7, 1.0, 1.3, 100.0};  // CAREFUL: length 4 expected
 // uint8_t adj_setting = 0;  // will be 1 after registering interrupt
 uint8_t adj_setting = 3;  // will be 1 after registering interrupt
 
+int rgb_r = 0;
+int rgb_g = 0;
+int rgb_b = 0;
+
 
 void onButton1() {
   button1_state = !button1_state;
@@ -191,6 +205,30 @@ void onButton2() {
   }
 }
 
+void set_led_color(int hexcolor) {
+  rgb_r = (hexcolor>>16)&0xFF;
+  rgb_g = (hexcolor>>8)&0xFF;
+  rgb_b = hexcolor&0xFF;
+  analogWrite(led_r, 255-rgb_r);
+  analogWrite(led_g, 255-rgb_g);
+  analogWrite(led_b, 255-rgb_b);
+}
+
+void set_led_lum(int lum_pct) {
+  lum_pct = constrain(lum_pct, 0, 100);
+  analogWrite(led_r, 255-(rgb_r*lum_pct)/100);
+  analogWrite(led_g, 255-(rgb_g*lum_pct)/100);
+  analogWrite(led_b, 255-(rgb_b*lum_pct)/100);
+}
+
+void set_led_color_lerp(int c1, int c2, int t) {
+  rgb_r =  (t*(((c2>>16)&0xFF)-((c1>>16)&0xFF)))/100 + ((c1>>16)&0xFF);
+  rgb_g =  (t*(((c2>>8)&0xFF)-((c1>>8)&0xFF)))/100 + ((c1>>8)&0xFF);
+  rgb_b =  (t*((c2&0xFF)-(c1&0xFF)))/100 + (c1&0xFF);
+  analogWrite(led_r, 255-rgb_r);
+  analogWrite(led_g, 255-rgb_g);
+  analogWrite(led_b, 255-rgb_b);
+}
 
 
 void setup(void) {
@@ -208,9 +246,16 @@ void setup(void) {
   pinMode(voltconf, OUTPUT);
 
   // turn on status rgb led
-  analogWrite(led_r, 255);
-  analogWrite(led_g, 240);
-  analogWrite(led_b, 200);
+  for (int t=0; t<100; t++) {
+    set_led_color_lerp(C_BLUE, C_YELLOW, t);
+    delay(10);
+  }
+  delay(1000);
+  for (int t=0; t<100; t++) {
+    set_led_color_lerp(C_YELLOW, C_RED, t);
+    delay(10);
+  }
+  delay(1000);
 
   // set valve voltage to 12V
   digitalWrite(voltconf, HIGH);
@@ -227,7 +272,9 @@ void setup(void) {
 
   // init buzzer
   digitalWrite(buzzer1, LOW);
-  tone(buzzer2, NOTE_E8, 1000);
+  tone(buzzer2, NOTE_E8);
+  delay(500);
+  noTone(buzzer2);
 
   #ifdef SERIAL_DEBUG_ENABLE
   // while (!Serial);  // necessary to get Serial
@@ -235,12 +282,14 @@ void setup(void) {
   Serial.begin(9600);  // USB
   #endif
 
-  // Initialise the barometric sensor */
-  if(bmp.begin()) {
-    // set baroOK bit to TRUE
-    // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
-    status_bits = status_bits|0b00010000;
+  #ifdef BARO_ENABLE
+  while(!bmp.begin()) {
+    delay(100);
   }
+  // set baroOK bit to TRUE
+  // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
+  status_bits = status_bits|0b00010000;
+  #endif
 
   // set alt mode
   if (button1_held) {
@@ -255,8 +304,8 @@ void setup(void) {
   }
 
   // enable button interrupt
-  attachInterrupt(digitalPinToInterrupt(button1), onButton1, CHANGE);
-  attachInterrupt(digitalPinToInterrupt(button2), onButton2, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(button1), onButton1, CHANGE);
+  // attachInterrupt(digitalPinToInterrupt(button2), onButton2, CHANGE);
 
 
   #ifdef BLE_ENABLE
@@ -276,9 +325,6 @@ void setup(void) {
   #endif
 
 
-  tone(buzzer2, NOTE_E7, 1000);
-
-
   #ifdef SPO2_ENABLE
   Serial1.begin(4800);  // RX/TX pins
   // set pulsoxyOK bit to TRUE
@@ -286,8 +332,29 @@ void setup(void) {
   pulsoxy_status_bits = pulsoxy_status_bits|0b00000100;
   #endif
 
+  // battery voltage feedback
+  sense_battery(true);
+  tone(buzzer2, NOTE_E6);
+  delay(300);
+  noTone(buzzer2);
+  delay(300);
+  if (bat_pct > 0.5) {
+    tone(buzzer2, NOTE_E6);
+    delay(300);
+    noTone(buzzer2);
+    delay(300);
+  }
+  if (bat_pct > 0.8) {
+    tone(buzzer2, NOTE_E6);
+    delay(300);
+    noTone(buzzer2);
+  }
 
-  tone(buzzer2, NOTE_E6, 1000);
+  // Status LED
+  for (int t=0; t<100; t++) {
+    set_led_color_lerp(C_RED, C_BLACK, t);
+    delay(10);
+  }
 }
 
 
@@ -362,20 +429,52 @@ void sense_breathing() {
   int val = (breathval-rhythm_get_baseline())*0.4;
   if (val > 12) { val = 12; }
   if (val < -12) { val = -12; }
-  // if (!baseline_set()) { graph_col = DARKBLUE; }
   if (rhythm_oxygen(oxygen_pct)) {
-    if (!digitalRead(valve)) {
+    if (!valve_on) {
       digitalWrite(valve, HIGH);
       last_oxygen_on = millis();
+      valve_on = true;
     }
   } else {
-    if (digitalRead(valve)) {
+    if (valve_on) {
       digitalWrite(valve, LOW);
       oxygen_total_ms += (millis()-last_oxygen_on);
+      valve_on = false;
     }
   }
   // display
-  analogWrite(led_b, breathval*10);
+  if (baseline_set()) {
+    int bl = get_baseline();
+    if (valve_on) {
+      if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
+        set_led_color(C_BLUE);
+      } else {
+        set_led_color(C_PINK);  // low spo2
+      }
+      set_led_lum(60);
+    } else if (breathval > bl+3) {  // exhale
+      if (bat_pct > STATUS_BAT_LOW) {
+        set_led_color(C_GREEN);
+      } else {
+        set_led_color(C_ORANGE);  // low bat
+      }
+      set_led_lum(abs(breathval-get_baseline())*2);
+    } else if (breathval < bl-3) {  // inhale
+      if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
+        set_led_color(C_BLUE);
+      } else {
+        set_led_color(C_PINK);  // low spo2
+      }
+      set_led_lum(abs(breathval-get_baseline())*4);
+    } else {  // breath idle
+      if (bat_pct > STATUS_BAT_LOW) {
+        set_led_color(C_GREEN);
+      } else {
+        set_led_color(C_ORANGE);  // low bat
+      }
+      set_led_lum(10);
+    }
+  }
 }
 
 
@@ -474,7 +573,7 @@ void set_oxygen_pct(float alt) {
 
 
 
-void sense_battery() {
+void sense_battery(bool noSmooth) {
   // 0-1023 -> 0-3.3
   // Feather M0, has default AREF of 3.3 and a voltage divider.
   // Lipos are maxed out at 4.2, then discharge mostly around 3.7, cutoff at 3.2V
@@ -488,7 +587,11 @@ void sense_battery() {
     newbat_pct = (batvolts - 3.2) * 1.11;  // * 1/(4.1-3.2)
   }
   // smooth in
-  bat_pct = 0.8*bat_pct + 0.2*newbat_pct;
+  if (noSmooth) {
+    bat_pct = newbat_pct;
+  } else{
+    bat_pct = 0.8*bat_pct + 0.2*newbat_pct;
+  }
   // set battery low bit
   if (bat_pct < STATUS_BAT_LOW) {
     // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)
@@ -598,7 +701,7 @@ void handle_pulsoxy(){
 #endif
 
 
-void send_status_serial(){
+void send_status_serial() {
   // send via usbserial
   // for Arduino serial plotter
   if (status_step_serial == 0) {
@@ -723,12 +826,15 @@ void send_status_ble() {
     } else if (status_step_ble == 6) {
       ble.print(frame_pulsoxy_signalstrength);
       ble.print("\t");
+      status_step_ble += 1;
     } else if (status_step_ble == 7) {
       ble.print(frame_pulsoxy_heartrate);
       ble.print("\t");
+      status_step_ble += 1;
     } else if (status_step_ble == 8) {
       ble.print(frame_pulsoxy_spo2);
       ble.print("\t");
+      status_step_ble += 1;
     } else if (status_step_ble == 9) {
       // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
       ble.print(frame_pulsoxy_status_bits);

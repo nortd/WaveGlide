@@ -1,3 +1,14 @@
+Waveglide 3X firmware
+---------------------
+- check protocol
+- tune breathFAST, breathLOW
+- status led
+  - breathing amp -> lumination
+  - spo2 mode -> blue on inhale
+  - altimeter fallback -> green on inhale
+  - low spo2 -> pink on exhale
+  - low bat -> red on exhale
+- status buzzer
 
 Waveglide 3X v3.1
 -----------------

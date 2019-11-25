@@ -75,7 +75,7 @@ void rhythm_addval(int val) {
   }
 
   // calc strength
-  breath_strength = 0.8*breath_strength + 0.2*abs(val-baseline);
+  breath_strength = 0.9*breath_strength + 0.1*abs(val-baseline);
 
   // add val to vals
   vals[vals_cursor] = val;
@@ -188,6 +188,10 @@ int rhythm_get_phase_ms() {
 
 bool baseline_set() {
   return baseline_ref_set;
+}
+
+int get_baseline() {
+  return baseline;
 }
 
 int rhythm_get_baseline() {
