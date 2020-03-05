@@ -13,18 +13,11 @@ Waveglide 3X firmware
 Waveglide 3X v3.1
 -----------------
 - feather footprint usb on wrong side
-- BMP120 miso/mosi switched, feather footprint incorrect
-- YS2000 vcc/gnd inverted
-- PCB top-right corner needs to go, left-top lower corner
+- update netlist
 - case
-  - db9 cutout
-  - mounts, screws
-    - 3.2mm -> 3.4mm
-    - 5.6mm -> 5.8mm
-  - seams
-    - lift waterline
-  - vents
-    - funnel
+  - buzzer funnel
+  - valve screw holes
+  - valve cover in different color?
 
 
 Beta-01 Issues

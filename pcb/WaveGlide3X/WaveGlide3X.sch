@@ -774,9 +774,9 @@ Wire Wire Line
 Text GLabel 4850 3350 0    50   Input ~ 0
 SCK
 Text GLabel 4850 3450 0    50   Input ~ 0
-MISO
-Text GLabel 4850 3550 0    50   Input ~ 0
 MOSI
+Text GLabel 4850 3550 0    50   Input ~ 0
+MISO
 Wire Wire Line
 	4850 3350 4950 3350
 Wire Wire Line
@@ -832,21 +832,12 @@ Wire Wire Line
 	4800 4600 4700 4600
 Wire Wire Line
 	4700 4700 4800 4700
-Wire Wire Line
-	4800 4800 4350 4800
-Wire Wire Line
-	4350 4800 4350 4650
-Wire Wire Line
-	4800 4900 4050 4900
 Text GLabel 4700 5000 0    50   Output ~ 0
 RED_AN
 Text GLabel 4700 5100 0    50   Output ~ 0
 RED_CA
 Wire Wire Line
-	4050 4900 4050 5200
-Wire Wire Line
 	4800 5200 4050 5200
-Connection ~ 4050 5200
 Wire Wire Line
 	4050 5200 4050 5300
 Text GLabel 4700 5300 0    50   Input ~ 0
@@ -970,4 +961,13 @@ Text GLabel 4850 3050 0    50   Output ~ 0
 OUT_VCONV
 Wire Wire Line
 	4950 3050 4850 3050
+Wire Wire Line
+	4800 4800 4050 4800
+Wire Wire Line
+	4050 4800 4050 5200
+Connection ~ 4050 5200
+Wire Wire Line
+	4350 4650 4350 4900
+Wire Wire Line
+	4350 4900 4800 4900
 $EndSCHEMATC
