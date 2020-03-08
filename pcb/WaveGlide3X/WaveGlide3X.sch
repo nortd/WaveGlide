@@ -970,4 +970,98 @@ Wire Wire Line
 	4350 4650 4350 4900
 Wire Wire Line
 	4350 4900 4800 4900
+$Comp
+L Connector_Generic:Conn_01x02 PIEZOCONN17
+U 1 1 5E651726
+P 5750 6350
+F 0 "PIEZOCONN17" H 5830 6296 50  0000 L CNN
+F 1 "PIEZOCONN" H 5830 6251 50  0001 L CNN
+F 2 "WaveGlide3X:PIEZO_17" H 5750 6350 50  0001 C CNN
+F 3 "~" H 5750 6350 50  0001 C CNN
+	1    5750 6350
+	1    0    0    -1  
+$EndComp
+$Comp
+L Transistor_BJT:2SC1815 Q1
+U 1 1 5E655A54
+P 5450 6800
+F 0 "Q1" H 5640 6846 50  0000 L CNN
+F 1 "KSC1815" H 5640 6755 50  0000 L CNN
+F 2 "Package_TO_SOT_THT:TO-92L_Inline_Wide" H 5650 6725 50  0001 L CIN
+F 3 "https://media.digikey.com/pdf/Data%20Sheets/Toshiba%20PDFs/2SC1815.pdf" H 5450 6800 50  0001 L CNN
+	1    5450 6800
+	1    0    0    -1  
+$EndComp
+Text GLabel 4650 6800 0    50   Input ~ 0
+OUT_PIEZO1
+Text Notes 6500 850  0    50   ~ 0
+POWERSWITCH in connects VBAT to VBAT_ON\nPOWERSWITCH out connects VBAT to VBAT_OFF
+Text Notes 6500 1100 0    31   ~ 0
+USB-disconnected & ON: bat-pwd, no charging\nUSB-disconnected & OFF: off, no charging\nUSB-connected & ON: usb-pwd, slow-charging (feather)\nUSB-connected & OFF: usb-pwd, fast-charging (charging screen)
+$Comp
+L power:+3.3V #PWR0112
+U 1 1 5E668B13
+P 5750 6200
+F 0 "#PWR0112" H 5750 6050 50  0001 C CNN
+F 1 "+3.3V" H 5765 6373 50  0000 C CNN
+F 2 "" H 5750 6200 50  0001 C CNN
+F 3 "" H 5750 6200 50  0001 C CNN
+	1    5750 6200
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5250 6200 5550 6200
+Wire Wire Line
+	5550 6350 5550 6200
+Connection ~ 5550 6200
+Wire Wire Line
+	5550 6200 5750 6200
+Wire Wire Line
+	4650 6800 4750 6800
+Wire Wire Line
+	5050 6800 5250 6800
+Wire Wire Line
+	5550 6450 5550 6550
+Wire Wire Line
+	5250 6500 5250 6550
+Wire Wire Line
+	5250 6550 5550 6550
+Connection ~ 5550 6550
+Wire Wire Line
+	5550 6550 5550 6600
+$Comp
+L Device:R R9
+U 1 1 5E69D4EE
+P 5250 6350
+F 0 "R9" V 5350 6400 50  0000 R CNN
+F 1 "1K" V 5250 6400 50  0000 R CNN
+F 2 "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal" V 5180 6350 50  0001 C CNN
+F 3 "~" H 5250 6350 50  0001 C CNN
+	1    5250 6350
+	-1   0    0    1   
+$EndComp
+$Comp
+L Device:R R10
+U 1 1 5E69EF47
+P 4900 6800
+F 0 "R10" V 5000 6850 50  0000 R CNN
+F 1 "1K" V 4900 6850 50  0000 R CNN
+F 2 "Resistor_THT:R_Axial_DIN0207_L6.3mm_D2.5mm_P10.16mm_Horizontal" V 4830 6800 50  0001 C CNN
+F 3 "~" H 4900 6800 50  0001 C CNN
+	1    4900 6800
+	0    -1   -1   0   
+$EndComp
+$Comp
+L power:GND #PWR0119
+U 1 1 5E6B5DD6
+P 5550 7150
+F 0 "#PWR0119" H 5550 6900 50  0001 C CNN
+F 1 "GND" H 5555 6977 50  0000 C CNN
+F 2 "" H 5550 7150 50  0001 C CNN
+F 3 "" H 5550 7150 50  0001 C CNN
+	1    5550 7150
+	1    0    0    -1  
+$EndComp
+Wire Wire Line
+	5550 7000 5550 7150
 $EndSCHEMATC
