@@ -1,5 +1,4 @@
 EESchema Schematic File Version 4
-LIBS:WaveGlide3X-cache
 EELAYER 30 0
 EELAYER END
 $Descr A4 11693 8268
@@ -413,17 +412,6 @@ F 3 "~" H 7300 1600 50  0001 C CNN
 	1    0    0    -1  
 $EndComp
 $Comp
-L power:GND #PWR0108
-U 1 1 5DBEF64A
-P 7350 4750
-F 0 "#PWR0108" H 7350 4500 50  0001 C CNN
-F 1 "GND" H 7355 4577 50  0000 C CNN
-F 2 "" H 7350 4750 50  0001 C CNN
-F 3 "" H 7350 4750 50  0001 C CNN
-	1    7350 4750
-	1    0    0    -1  
-$EndComp
-$Comp
 L Connector_Generic:Conn_01x05 CHARGER1
 U 1 1 5DC2327E
 P 5550 1000
@@ -479,10 +467,6 @@ Wire Wire Line
 	6900 1600 7100 1600
 Wire Wire Line
 	6900 1700 7100 1700
-Text GLabel 7500 4500 0    50   Output ~ 0
-VBAT
-Wire Wire Line
-	7500 4500 7600 4500
 $Comp
 L Device:R R5
 U 1 1 5DCA54EF
@@ -871,21 +855,6 @@ Wire Wire Line
 Wire Wire Line
 	9750 5800 9750 5600
 Connection ~ 9750 5600
-$Comp
-L Connector_Generic:Conn_01x02 BATCONN2
-U 1 1 5E161BB6
-P 7800 4500
-F 0 "BATCONN2" H 7450 4700 50  0000 L CNN
-F 1 "BATCONN" H 7880 4401 50  0001 L CNN
-F 2 "WaveGlide3X:BATCONN" H 7800 4500 50  0001 C CNN
-F 3 "~" H 7800 4500 50  0001 C CNN
-	1    7800 4500
-	1    0    0    -1  
-$EndComp
-Wire Wire Line
-	7350 4750 7350 4600
-Wire Wire Line
-	7350 4600 7600 4600
 $Comp
 L Connector_Generic:Conn_01x02 BATCONN1
 U 1 1 5E16A953
