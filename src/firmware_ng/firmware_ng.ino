@@ -50,8 +50,13 @@
 #define baro_cs 19
 
 #define breath 18    // differential pressure sensor
-#define buzzer1 5    // piezo buzzer pin1
-#define buzzer2 6    // piezo buzzer pin2
+#ifdef VERSION31
+  #define buzzer1 5    // piezo buzzer pin1
+  #define buzzer2 6    // piezo buzzer pin2
+#else
+  #define buzzer1 6    // not used
+  #define buzzer2 5    // piezo buzzer pin
+#endif
 #define battery 9    // battery voltage
 #define led_g 10     // RGB green
 #define led_b 11     // RGB blue
