@@ -10,8 +10,8 @@ Waveglide 3X firmware
   - low bat -> red on exhale
 - status buzzer
 
-Waveglide 3X v3.1
------------------
+Waveglide 3X v3.1 Issues
+------------------------
 - feather footprint usb on wrong side
 - update netlist
 - case

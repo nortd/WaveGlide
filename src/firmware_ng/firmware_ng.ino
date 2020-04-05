@@ -108,7 +108,7 @@ uint8_t pulsoxy_heartratebit7 = 0;
 uint8_t pulsoxy_heartrate = 0;
 uint8_t pulsoxy_spo2 = 0;
 // status bits, 0-6 (ASCII range)
-// (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
+// (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
 // // signalOK ... any signal from probe
 // // probeOK ... finger probe connected
 // // sensorOK ... finger in probe
@@ -152,7 +152,7 @@ Adafruit_BMP280 bmp(baro_cs);
 int oxygen_start_alts[] = {2625, 1524}; // FL80, FL50, CAREFUL: length 2 expected
 uint8_t alt_setting = 1;  // used as index in above arrays
 int oxygen_pct = 0; // [0,100]
-int oxygen_total_ms = 0;
+int oxygen_total_ms = 0;  // FYI: int is 4 bits and overflows at 2147483647 or 596h
 uint16_t last_oxygen_on = 0;
 
 // battery voltage monitoring
@@ -250,17 +250,12 @@ void setup(void) {
   pinMode(button2, INPUT_PULLUP);
   pinMode(voltconf, OUTPUT);
 
-  // turn on status rgb led
-  for (int t=0; t<100; t++) {
-    set_led_color_lerp(C_BLUE, C_YELLOW, t);
-    delay(10);
-  }
-  delay(1000);
-  for (int t=0; t<100; t++) {
-    set_led_color_lerp(C_YELLOW, C_RED, t);
-    delay(10);
-  }
-  delay(1000);
+  // // turn on status rgb led
+  // for (int t=0; t<100; t++) {
+  //   set_led_color_lerp(C_BLACK, C_GREEN, t);
+  //   delay(10);
+  // }
+  // delay(1000);
 
   // set valve voltage to 12V
   digitalWrite(voltconf, HIGH);
@@ -277,9 +272,9 @@ void setup(void) {
 
   // init buzzer
   digitalWrite(buzzer1, LOW);
-  tone(buzzer2, NOTE_E8);
-  delay(500);
-  noTone(buzzer2);
+  // tone(buzzer2, NOTE_E8);
+  // delay(500);
+  // noTone(buzzer2);
 
   #ifdef SERIAL_DEBUG_ENABLE
   // while (!Serial);  // necessary to get Serial
@@ -333,32 +328,29 @@ void setup(void) {
   #ifdef SPO2_ENABLE
   Serial1.begin(4800);  // RX/TX pins
   // set pulsoxyOK bit to TRUE
-  // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
-  pulsoxy_status_bits = pulsoxy_status_bits|0b00000100;
+  // (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
+  pulsoxy_status_bits = pulsoxy_status_bits|0b00000001;
   #endif
 
   // battery voltage feedback
   sense_battery(true);
-  tone(buzzer2, NOTE_E6);
-  delay(300);
-  noTone(buzzer2);
-  delay(300);
-  if (bat_pct > 0.5) {
+  set_led_color(C_BLACK);
+  int bat_stat_beeps = 3;
+  int bat_stat_color = C_GREEN;
+  if (bat_pct < 0.5) {
+    bat_stat_beeps = 1;
+    bat_stat_color = C_RED;
+  } else if(bat_pct < 0.8) {
+    bat_stat_beeps = 2;
+    bat_stat_color = C_ORANGE;
+  }
+  for (int i=0; i<bat_stat_beeps; i++) {
+    delay(300);
     tone(buzzer2, NOTE_E6);
+    set_led_color(bat_stat_color);
     delay(300);
     noTone(buzzer2);
-    delay(300);
-  }
-  if (bat_pct > 0.8) {
-    tone(buzzer2, NOTE_E6);
-    delay(300);
-    noTone(buzzer2);
-  }
-
-  // Status LED
-  for (int t=0; t<100; t++) {
-    set_led_color_lerp(C_RED, C_BLACK, t);
-    delay(10);
+    set_led_color(C_BLACK);
   }
 }
 
@@ -452,32 +444,33 @@ void sense_breathing() {
     int bl = get_baseline();
     if (valve_on) {
       if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
-        set_led_color(C_BLUE);
+        // set_led_color(C_GREEN);
       } else {
-        set_led_color(C_PINK);  // low spo2
+        // set_led_color(C_RED);  // low spo2
       }
       set_led_lum(60);
     } else if (breathval > bl+3) {  // exhale
+      set_led_color(C_BLACK);
       if (bat_pct > STATUS_BAT_LOW) {
-        set_led_color(C_GREEN);
+        // set_led_color(C_GREEN);
       } else {
-        set_led_color(C_ORANGE);  // low bat
+        // set_led_color(C_ORANGE);  // low bat
       }
       set_led_lum(abs(breathval-get_baseline())*2);
     } else if (breathval < bl-3) {  // inhale
       if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
-        set_led_color(C_BLUE);
-      } else {
-        set_led_color(C_PINK);  // low spo2
-      }
-      set_led_lum(abs(breathval-get_baseline())*4);
-    } else {  // breath idle
-      if (bat_pct > STATUS_BAT_LOW) {
         set_led_color(C_GREEN);
       } else {
-        set_led_color(C_ORANGE);  // low bat
+        set_led_color(C_RED);  // low spo2
       }
-      set_led_lum(10);
+      // set_led_lum(abs(breathval-get_baseline())*4);
+    } else {  // breath idle
+      if (bat_pct > STATUS_BAT_LOW) {
+        // set_led_color(C_GREEN);
+      } else {
+        // set_led_color(C_ORANGE);  // low bat
+      }
+      // set_led_lum(10);
     }
   }
 }
@@ -653,7 +646,7 @@ void handle_pulsoxy(){
       pulseoxy_bcibyte = 0;
     }
     // parse bytes
-    // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
+    // (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
     if (pulseoxy_bcibyte == 0) {
       pulsoxy_signalstrength = pulsoxy_byte&7;  // 3 bits, 0-7
       // pulsoxy_signalOK = (pulsoxy_byte&1<<4)>>4; // 0=OK
@@ -711,58 +704,58 @@ void send_status_serial() {
   // for Arduino serial plotter
   if (status_step_serial == 0) {
     Serial.print(rhythm_get_strength());
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 1) {
     Serial.print(rhythm_get_period_ms());
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 2) {
     Serial.print(oxygen_pct);
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 3) {
-    Serial.print(oxygen_total_ms);
-    Serial.print("\t");
+    Serial.print((int)(oxygen_total_ms/1000));
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 4) {
     Serial.print(flight_level);
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 5) {
     Serial.print(round(bat_pct*100));
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 6) {
     Serial.print(frame_pulsoxy_signalstrength);
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 7) {
     Serial.print(frame_pulsoxy_heartrate);
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 8) {
     Serial.print(frame_pulsoxy_spo2);
-    Serial.print("\t");
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 9) {
     // explode status bits, map to 0 and 100 for visible plotting
-    // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
+    // (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
     //signalOK
     Serial.print(map((frame_pulsoxy_status_bits&0b01000000)>>6, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //probeOK
     Serial.print(map((frame_pulsoxy_status_bits&0b00100000)>>5, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //sensorOK
     Serial.print(map((frame_pulsoxy_status_bits&0b00010000)>>4, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //pulseOK
     Serial.print(map((frame_pulsoxy_status_bits&0b00001000)>>3, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //pulsoxyOK
-    Serial.print(map((frame_pulsoxy_status_bits&0b00000100)>>2, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(map((frame_pulsoxy_status_bits&0b00000001)>>0, 0, 1, 0, 100));
+    Serial.print(" ");
     status_step_serial += 1;
   } else if (status_step_serial == 10) {
     // explode status bits, map to 0 and 100 for visible plotting
@@ -781,22 +774,22 @@ void send_status_serial() {
     }
     //bleFAIL
     Serial.print(map((status_bits&0b00100000)>>5, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //baroFAIL
     Serial.print(map((status_bits&0b00010000)>>4, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //breathFAST
     Serial.print(map((status_bits&0b00001000)>>3, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //breathLOW
     Serial.print(map((status_bits&0b00000100)>>2, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //batLOW
     Serial.print(map((status_bits&0b00000010)>>1, 0, 1, 0, 100));
-    Serial.print("\t");
+    Serial.print(" ");
     //spo2LOW
     Serial.print(map((status_bits&0b00000001), 0, 1, 0, 100));
-    Serial.println("\t");  // println since last
+    Serial.println(" ");  // println since last
     status_step_serial = 0;  // start over
   }
 }
@@ -806,44 +799,44 @@ void send_status_ble() {
   if (ble.isConnected()) {
     if (status_step_ble == 0) {
       ble.print(rhythm_get_strength());
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 1) {
       ble.print(rhythm_get_period_ms());
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 2) {
       ble.print(oxygen_pct);
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 3) {
-      ble.print(oxygen_total_ms);
-      ble.print("\t");
+      ble.print((int)(oxygen_total_ms/1000));
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 4) {
       ble.print(flight_level);
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 5) {
       ble.print(round(bat_pct*100));
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 6) {
       ble.print(frame_pulsoxy_signalstrength);
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 7) {
       ble.print(frame_pulsoxy_heartrate);
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 8) {
       ble.print(frame_pulsoxy_spo2);
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 9) {
-      // (_, signalOK, probeOK, sensorOK, pulseOK, pulsoxyOK, _, _)
+      // (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
       ble.print(frame_pulsoxy_status_bits);
-      ble.print("\t");
+      ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 10) {
       // (_, _, bleFAIL, baroFAIL, breathFAST, breathLOW, batLOW, spo2LOW)

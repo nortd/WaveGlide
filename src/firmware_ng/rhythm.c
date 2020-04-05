@@ -179,7 +179,7 @@ bool rhythm_oxygen(int dur_pct) {
 
 
 int rhythm_get_period_ms() {
-  return last_period*RHYTHM_TEMPRES;
+  return last_period_smoothed*RHYTHM_TEMPRES;
 }
 
 int rhythm_get_phase_ms() {
