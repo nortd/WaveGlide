@@ -190,6 +190,7 @@ uint8_t adj_setting = 3;  // will be 1 after registering interrupt
 int rgb_r = 0;
 int rgb_g = 0;
 int rgb_b = 0;
+int rgb_lum = 100;
 
 
 void onButton1() {
@@ -210,20 +211,29 @@ void onButton2() {
   }
 }
 
-void set_led_color(int hexcolor) {
+void set_led_off() {
+  // Using digitalWrite because with analogWrite(255)
+  // the LED still has a tiny bit of visible illumination.
+  pinMode(led_r, OUTPUT);
+  pinMode(led_g, OUTPUT);
+  pinMode(led_b, OUTPUT);
+  digitalWrite(led_r, HIGH);
+  digitalWrite(led_g, HIGH);
+  digitalWrite(led_b, HIGH);
+}
+
+void set_led_color(int hexcolor, int lum_pct=100) {
   rgb_r = (hexcolor>>16)&0xFF;
   rgb_g = (hexcolor>>8)&0xFF;
   rgb_b = hexcolor&0xFF;
-  analogWrite(led_r, 255-rgb_r);
-  analogWrite(led_g, 255-rgb_g);
-  analogWrite(led_b, 255-rgb_b);
-}
-
-void set_led_lum(int lum_pct) {
   lum_pct = constrain(lum_pct, 0, 100);
-  analogWrite(led_r, 255-(rgb_r*lum_pct)/100);
-  analogWrite(led_g, 255-(rgb_g*lum_pct)/100);
-  analogWrite(led_b, 255-(rgb_b*lum_pct)/100);
+  if (lum_pct == 0) {
+    set_led_off();
+  } else {
+    analogWrite(led_r, 255-(rgb_r*lum_pct)/100);
+    analogWrite(led_g, 255-(rgb_g*lum_pct)/100);
+    analogWrite(led_b, 255-(rgb_b*lum_pct)/100);
+  }
 }
 
 void set_led_color_lerp(int c1, int c2, int t) {
@@ -334,7 +344,8 @@ void setup(void) {
 
   // battery voltage feedback
   sense_battery(true);
-  set_led_color(C_BLACK);
+  // set_led_color(C_BLACK);
+  set_led_off();
   int bat_stat_beeps = 3;
   int bat_stat_color = C_GREEN;
   if (bat_pct < 0.5) {
@@ -347,10 +358,11 @@ void setup(void) {
   for (int i=0; i<bat_stat_beeps; i++) {
     delay(300);
     tone(buzzer2, NOTE_E6);
-    set_led_color(bat_stat_color);
+    set_led_color(bat_stat_color, 60);
     delay(300);
     noTone(buzzer2);
-    set_led_color(C_BLACK);
+    // set_led_color(C_BLACK, 0);
+    set_led_off();
   }
 }
 
@@ -444,24 +456,24 @@ void sense_breathing() {
     int bl = get_baseline();
     if (valve_on) {
       if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
-        // set_led_color(C_GREEN);
+        set_led_color(C_GREEN, 60);
       } else {
-        // set_led_color(C_RED);  // low spo2
+        set_led_color(C_RED, 60);  // low spo2
       }
-      set_led_lum(60);
     } else if (breathval > bl+3) {  // exhale
-      set_led_color(C_BLACK);
+      // set_led_color(C_BLACK);
+      set_led_off();
       if (bat_pct > STATUS_BAT_LOW) {
         // set_led_color(C_GREEN);
       } else {
         // set_led_color(C_ORANGE);  // low bat
       }
-      set_led_lum(abs(breathval-get_baseline())*2);
+      // set_led_lum(abs(breathval-get_baseline())*2);
     } else if (breathval < bl-3) {  // inhale
       if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
-        set_led_color(C_GREEN);
+        set_led_color(C_GREEN, 60);
       } else {
-        set_led_color(C_RED);  // low spo2
+        set_led_color(C_RED, 60);  // low spo2
       }
       // set_led_lum(abs(breathval-get_baseline())*4);
     } else {  // breath idle
