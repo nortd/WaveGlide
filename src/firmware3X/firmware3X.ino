@@ -25,6 +25,7 @@
 
 #define STATUS_SPO2_CAUTION 93
 #define STATUS_SPO2_LOW 88
+#define STATUS_BAT_CAUTION 0.5
 #define STATUS_BAT_LOW 0.3
 #define STATUS_BREATH_LOW 15
 #define STATUS_BREATH_FAST 1000
@@ -456,13 +457,13 @@ void sense_breathing() {
       //   set_led_color(C_RED, 100);  // low spo2
       // }
     } else if (breathval > bl+3) {  // exhale
-      set_led_off();
-      if (bat_pct > STATUS_BAT_LOW) {
-        // set_led_color(C_GREEN);
+      if (bat_pct <= STATUS_BAT_LOW) {
+        set_led_color(C_RED, 50);
+      } else if (bat_pct <= STATUS_BAT_CAUTION) {
+        set_led_color(C_ORANGE, 50);
       } else {
-        // set_led_color(C_ORANGE);  // low bat
+        set_led_color(C_GREEN, 50);
       }
-      // set_led_lum(abs(breathval-get_baseline())*2);
     } else if (breathval < bl-3) {  // inhale
       if (pulsoxy_spo2 <= STATUS_SPO2_LOW) {
         set_led_color(C_RED, 100);  // low spo2
