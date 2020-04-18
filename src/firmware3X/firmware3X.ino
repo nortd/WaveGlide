@@ -36,6 +36,7 @@
 #define C_RED 0xff0000
 #define C_PINK 0xff00ff
 #define C_BLACK 0x000000
+#define C_WHITE 0xffffff
 
 // pulseoxy on default serial
 #define spo2_rx 0
