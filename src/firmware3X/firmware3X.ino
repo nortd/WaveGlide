@@ -1,7 +1,7 @@
 /*
   firmware.ino - the main firmware file
   Part of the WaveGlide firmware. See: https://github.com/nortd/WaveGlide
-  Copyright (c) 2019 Stefan Hechenberger
+  Copyright (c) 2020 Stefan Hechenberger
 
   The WaveGlide firmware is free software: you can redistribute it and/or
   modify it under the terms of the GNU General Public License as published
@@ -23,6 +23,7 @@
 #define SERIAL_DEBUG_ENABLE
 // #define SIMULATE_ALTITUDE 4500
 
+#define STATUS_SPO2_CAUTION 93
 #define STATUS_SPO2_LOW 88
 #define STATUS_BAT_LOW 0.3
 #define STATUS_BREATH_LOW 15
@@ -147,11 +148,10 @@ Adafruit_BMP280 bmp(baro_cs);
 
 // oxygen setting related
 #define METERS2FEET 3.28084
-#define OXYGEN_100PCT_FL 300  // FL300
 #define OXYGEN_100PCT_ALTITUDE 9144  // FL300
 int oxygen_start_alts[] = {2625, 1524}; // FL80, FL50, CAREFUL: length 2 expected
 uint8_t alt_setting = 1;  // used as index in above arrays
-int oxygen_pct = 0; // [0,100]
+int oxygen_pct = 0; // 0-100
 int oxygen_total_ms = 0;  // FYI: int is 4 bits and overflows at 2147483647 or 596h
 uint16_t last_oxygen_on = 0;
 
@@ -184,13 +184,11 @@ bool button2_state = LOW;
 // interface
 // adjustment percentages, applied to oxygen_pct
 float adj_pcts[] = {0.7, 1.0, 1.3, 100.0};  // CAREFUL: length 4 expected
-// uint8_t adj_setting = 0;  // will be 1 after registering interrupt
-uint8_t adj_setting = 3;  // will be 1 after registering interrupt
+uint8_t adj_setting = 3;
 
 int rgb_r = 0;
 int rgb_g = 0;
 int rgb_b = 0;
-int rgb_lum = 100;
 
 
 void onButton1() {
@@ -260,12 +258,13 @@ void setup(void) {
   pinMode(button2, INPUT_PULLUP);
   pinMode(voltconf, OUTPUT);
 
-  // // turn on status rgb led
-  // for (int t=0; t<100; t++) {
-  //   set_led_color_lerp(C_BLACK, C_GREEN, t);
-  //   delay(10);
-  // }
-  // delay(1000);
+  // init status rgb led
+  for (int t=0; t<100; t++) {
+    set_led_color_lerp(C_WHITE, C_GREEN, t);
+    delay(10);
+  }
+  delay(300);
+  set_led_off();
 
   // set valve voltage to 12V
   digitalWrite(voltconf, HIGH);
@@ -282,9 +281,6 @@ void setup(void) {
 
   // init buzzer
   digitalWrite(buzzer1, LOW);
-  // tone(buzzer2, NOTE_E8);
-  // delay(500);
-  // noTone(buzzer2);
 
   #ifdef SERIAL_DEBUG_ENABLE
   // while (!Serial);  // necessary to get Serial
@@ -303,13 +299,15 @@ void setup(void) {
 
   // set alt mode
   if (button1_held) {
+    // DISABLED for now
     // If button was helled during power-up set to next alt mode.
     // Specifically this means oxygenation starts at a higher alt.
-    alt_setting++;
-    if (alt_setting >= 2) { alt_setting = 0; }
+    // alt_setting++;
+    // if (alt_setting >= 2) { alt_setting = 0; }
   }
 
   if (button2_held) {
+    // DISABLED
     // TODO: RESET
   }
 
@@ -344,8 +342,6 @@ void setup(void) {
 
   // battery voltage feedback
   sense_battery(true);
-  // set_led_color(C_BLACK);
-  set_led_off();
   int bat_stat_beeps = 3;
   int bat_stat_color = C_GREEN;
   if (bat_pct < 0.5) {
@@ -361,7 +357,6 @@ void setup(void) {
     set_led_color(bat_stat_color, 60);
     delay(300);
     noTone(buzzer2);
-    // set_led_color(C_BLACK, 0);
     set_led_off();
   }
 }
@@ -434,7 +429,6 @@ void loop() {
 void sense_breathing() {
   breathval = analogRead(breath);
   rhythm_addval(breathval);
-  // Serial.println(breathval);
   int val = (breathval-rhythm_get_baseline())*0.4;
   if (val > 12) { val = 12; }
   if (val < -12) { val = -12; }
@@ -455,13 +449,12 @@ void sense_breathing() {
   if (baseline_set()) {
     int bl = get_baseline();
     if (valve_on) {
-      if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
-        set_led_color(C_GREEN, 60);
-      } else {
-        set_led_color(C_RED, 60);  // low spo2
-      }
+      // if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
+      //   set_led_color(C_GREEN, 60);
+      // } else {
+      //   set_led_color(C_RED, 100);  // low spo2
+      // }
     } else if (breathval > bl+3) {  // exhale
-      // set_led_color(C_BLACK);
       set_led_off();
       if (bat_pct > STATUS_BAT_LOW) {
         // set_led_color(C_GREEN);
@@ -470,10 +463,12 @@ void sense_breathing() {
       }
       // set_led_lum(abs(breathval-get_baseline())*2);
     } else if (breathval < bl-3) {  // inhale
-      if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
-        set_led_color(C_GREEN, 60);
+      if (pulsoxy_spo2 <= STATUS_SPO2_LOW) {
+        set_led_color(C_RED, 100);  // low spo2
+      } else if (pulsoxy_spo2 <= STATUS_SPO2_CAUTION) {
+        set_led_color(C_ORANGE, 80);
       } else {
-        set_led_color(C_RED, 60);  // low spo2
+        set_led_color(C_GREEN, 60);
       }
       // set_led_lum(abs(breathval-get_baseline())*4);
     } else {  // breath idle
@@ -504,11 +499,10 @@ void sense_altitude() {
     } else {
       // reject
     }
-    // flight level, in feet, /100, rounded to nearest 500
+    // flight level, in feet, /100, rounded to nearest 500 (definition)
     // flight_level = round((altitude_smoothed * METERS2FEET)/500) * 5;
     // flight level, do not round to nearest 500
     flight_level = round((altitude_smoothed * METERS2FEET)/100);
-    flight_level = constrain(flight_level, 0, OXYGEN_100PCT_FL);
 }
 #endif
 
