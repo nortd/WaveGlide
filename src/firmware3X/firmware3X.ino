@@ -29,15 +29,21 @@
 #define STATUS_BAT_LOW 0.3
 #define STATUS_BREATH_LOW 15
 #define STATUS_BREATH_FAST 1000
+#define PULSOXY_MIN_SIGNAL 2
 
 #define C_BLUE 0x0033ff
-#define C_GREEN 0x44ff44
+#define C_GREEN 0x00ff11
 #define C_YELLOW 0xffff00
 #define C_ORANGE 0xff7700
 #define C_RED 0xff0000
 #define C_PINK 0xff00ff
 #define C_BLACK 0x000000
 #define C_WHITE 0xffffff
+
+#define LOWKEY_BRIGHTNESS 15
+#define NOTICE_BRIGHTNESS 50
+#define CAUTION_BRIGHTNESS 80
+#define WARN_BRIGHTNESS 100
 
 // pulseoxy on default serial
 #define spo2_rx 0
@@ -92,7 +98,7 @@ uint16_t last_serial_dur = 0;
 uint8_t status_step_serial = 0;
 
 // pulsoxy
-bool spo2_mode = false;
+bool pulsoxy_mode = false;
 uint16_t last_pulsoxy = 0;      // for sample timing
 uint16_t last_pulsoxy_dur = 0;  // for samble timing
 uint8_t pulsoxy_frame_count = 0;
@@ -196,8 +202,7 @@ bool button2_state = LOW;
 
 // interface
 // adjustment percentages, applied to oxygen_pct
-float adj_pcts[] = {0.7, 1.0, 1.3, 100.0};  // CAREFUL: length 4 expected
-uint8_t adj_setting = 3;
+float adj_pcts = 1.0;
 
 int rgb_r = 0;
 int rgb_g = 0;
@@ -367,7 +372,7 @@ void setup(void) {
   for (int i=0; i<bat_stat_beeps; i++) {
     delay(300);
     tone(buzzer2, NOTE_E6);
-    set_led_color(bat_stat_color, 60);
+    set_led_color(bat_stat_color, NOTICE_BRIGHTNESS);
     delay(300);
     noTone(buzzer2);
     set_led_off();
@@ -448,9 +453,6 @@ void loop() {
 void sense_breathing() {
   breathval = analogRead(breath);
   rhythm_addval(breathval);
-  int val = (breathval-rhythm_get_baseline())*0.4;
-  if (val > 12) { val = 12; }
-  if (val < -12) { val = -12; }
   if (rhythm_oxygen(oxygen_pct)) {
     if (!valve_on) {
       digitalWrite(valve, HIGH);
@@ -480,16 +482,16 @@ void handle_feedback() {
         last_idle = 0;  // end idle
       } else {  // inhale ongoing
         last_inhale_dur = millis()-last_inhale;
-        if (spo2_mode) {
+        if (pulsoxy_mode) {
           if (pulsoxy_spo2 <= STATUS_SPO2_LOW) {
-            set_led_color(C_RED, 100);
+            set_led_color(C_RED, WARN_BRIGHTNESS);
           } else if (pulsoxy_spo2 <= STATUS_SPO2_CAUTION) {
-            set_led_color(C_ORANGE, 80);
+            set_led_color(C_ORANGE, CAUTION_BRIGHTNESS);
           } else {
-            set_led_color(C_BLUE, 60);
+            set_led_color(C_BLUE, NOTICE_BRIGHTNESS);
           }
         } else {
-          set_led_color(C_GREEN, 60);
+          set_led_color(C_GREEN, NOTICE_BRIGHTNESS);
         }
       }
     } else if (rhythm_get_phase() == PHASE_EXHALE) {  // exhale
@@ -504,41 +506,7 @@ void handle_feedback() {
         set_led_off();
       } else {  // exhale ongoing
         last_exhale_dur = millis()-last_exhale;
-        // int start_delay = 0.3*rhythm_get_period_ms();
-        int start_delay = 500;
-        if (last_exhale_dur > start_delay) {
-          // three blinks
-          // blink1on-link1off-blink2on-blink2off-blink3on-blink3off
-          //        50     150       50       150      50
-          //     0     50      200       250      400     450
-          if (last_exhale_dur > start_delay+450) {  // blink3off
-            set_led_off();
-          } else if (last_exhale_dur > start_delay+400) {  // blink3on
-            if (ble.isConnected()) {
-              set_led_color(C_BLUE, 50);
-            } else {
-              set_led_color(C_GREEN, 50);
-            }
-          } else if (last_exhale_dur > start_delay+250) {  // blink2off
-            set_led_off();
-          } else if (last_exhale_dur > start_delay+200) {  // blink2on
-            if (bat_pct <= STATUS_BAT_CAUTION) {
-              set_led_color(C_ORANGE, 50);
-            } else {
-              set_led_color(C_GREEN, 50);
-            }
-          } else if (last_exhale_dur > start_delay+50) {  // blink1off
-            set_led_off();
-          } else {  // blink1on
-            if (bat_pct <= STATUS_BAT_LOW) {
-              set_led_color(C_RED, 50);
-            } else if (bat_pct <= STATUS_BAT_CAUTION) {
-              set_led_color(C_ORANGE, 50);
-            } else {
-              set_led_color(C_GREEN, 50);
-            }
-          }
-        }
+        handle_feedback_status_triple(last_exhale_dur, 500);
       }
       last_idle = 0;  // end idle
     } else if (rhythm_get_phase() == PHASE_IDLE) {  // breath idle
@@ -546,25 +514,54 @@ void handle_feedback() {
         last_idle = millis();
         last_inhale = 0;  // end inhale
         last_exhale = 0;  // end exhale
-        if (bat_pct <= STATUS_BAT_LOW) {
-          set_led_color(C_RED, 20);
-        } else if (bat_pct <= STATUS_BAT_CAUTION) {
-          set_led_color(C_ORANGE, 20);
-        } else {
-          set_led_color(C_GREEN, 20);
-        }
       } else {  // idle ongoing
         last_idle_dur = millis()-last_idle;
-        if (last_idle_dur > 6000) {
+        if (last_idle_dur > 10000) {
           last_idle = 0;
-        } else if (last_idle_dur > 50) {
-          set_led_off();
+        } else {
+          handle_feedback_status_triple(last_idle_dur, 500);
         }
       }
     }
   }
 }
 
+
+void handle_feedback_status_triple(uint16_t last_dur, uint16_t start_delay) {
+  if (last_dur > start_delay) {
+    // three blinks
+    // blink1on-link1off-blink2on-blink2off-blink3on-blink3off
+    //        50     150       50       150      50
+    //     0     50      200       250      400     450
+    if (last_dur > start_delay+450) {  // blink3off
+      set_led_off();
+    } else if (last_dur > start_delay+400) {  // blink3on
+      if (ble.isConnected()) {
+        set_led_color(C_BLUE, LOWKEY_BRIGHTNESS);
+      } else {
+        set_led_color(C_GREEN, LOWKEY_BRIGHTNESS);
+      }
+    } else if (last_dur > start_delay+250) {  // blink2off
+      set_led_off();
+    } else if (last_dur > start_delay+200) {  // blink2on
+      if (bat_pct <= STATUS_BAT_CAUTION) {
+        set_led_color(C_ORANGE, LOWKEY_BRIGHTNESS);
+      } else {
+        set_led_color(C_GREEN, LOWKEY_BRIGHTNESS);
+      }
+    } else if (last_dur > start_delay+50) {  // blink1off
+      set_led_off();
+    } else {  // blink1on
+      if (bat_pct <= STATUS_BAT_LOW) {
+        set_led_color(C_RED, LOWKEY_BRIGHTNESS);
+      } else if (bat_pct <= STATUS_BAT_CAUTION) {
+        set_led_color(C_ORANGE, LOWKEY_BRIGHTNESS);
+      } else {
+        set_led_color(C_GREEN, LOWKEY_BRIGHTNESS);
+      }
+    }
+  }
+}
 
 #ifdef BARO_ENABLE
 void sense_altitude() {
@@ -637,25 +634,31 @@ void set_oxygen_pct(float alt) {
   // (0.00000134*x**2+ 0.0036*x) - high curve
   // ((0.00000180*(x-1400)**2)+3) - low curve
 
-  if (adj_setting == 3) {  // max setting -> 100%
-    oxygen_pct = 100;
-  } else {
-    // set a oxygen percentaged based on altitude
-    if (alt > oxygen_start_alts[alt_setting]) {
-      if (alt < OXYGEN_100PCT_ALTITUDE) {
-        // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
-        // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
-        oxygen_pct = ((0.00000180*(alt-1400)*(alt-1400))+3);  // above function
-      } else {
-        oxygen_pct = 100; // 100%
-      }
+  // set a oxygen percentaged based on altitude
+  if (alt > oxygen_start_alts[alt_setting]) {
+    if (alt < OXYGEN_100PCT_ALTITUDE) {
+      // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
+      // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
+      oxygen_pct = ((0.00000180*(alt-1400)*(alt-1400))+3);  // above function
     } else {
-      oxygen_pct = 0; // 0%, below start altitude
+      oxygen_pct = 100; // 100%
     }
-    // apply adjustement setting
-    oxygen_pct = oxygen_pct * adj_pcts[adj_setting];
-    oxygen_pct = constrain(oxygen_pct, 0, 100);
+  } else {
+    oxygen_pct = 0; // 0%, below start altitude
   }
+  // apply adjustement setting
+  if (pulsoxy_mode) {
+    if (pulsoxy_spo2 <= 95) {
+      adj_pcts = 0.9*adj_pcts + 0.1*(0.01*map(pulsoxy_spo2, 85, 95, 200, 100));
+    } else if (pulsoxy_spo2 > 95) {
+      adj_pcts = 0.9*adj_pcts + 0.1*(0.01*map(pulsoxy_spo2, 96, 100, 100, 10));
+    }
+    oxygen_pct = oxygen_pct * adj_pcts;
+  } else {
+    oxygen_pct = 100;
+  }
+  oxygen_pct = constrain(oxygen_pct, 0, 100);
+
 }
 
 
@@ -691,10 +694,7 @@ void sense_battery(bool noSmooth) {
 
 
 void handle_short_button1() {
-  adj_setting++;
-  if (adj_setting >= 4) { adj_setting = 0; }
-  // update oxygen_pct
-  set_oxygen_pct(altitude_smoothed);
+  // NOT USED
 }
 
 void handle_short_button2() {
@@ -760,6 +760,11 @@ void handle_pulsoxy(){
       pulseoxy_bcibyte += 1;
     } else if (pulseoxy_bcibyte == 4){
       pulsoxy_spo2 = (pulsoxy_byte&127); // first 7 bits, 0-100%
+      if (pulsoxy_spo2 != 127 && pulsoxy_signalstrength > PULSOXY_MIN_SIGNAL) {
+        pulsoxy_mode = true;
+      } else {
+        pulsoxy_mode = false;
+      }
       pulseoxy_bcibyte += 1;
     } else if (pulseoxy_bcibyte == 5){
       // not used
