@@ -87,19 +87,19 @@
 // #include "Adafruit_Bluefruit_nRF51/BluefruitConfig.h"
 #define MINIMUM_FIRMWARE_VERSION "0.6.6"
 Adafruit_BluefruitLE_SPI ble(ble_cs, ble_irq, ble_reset);
-uint16_t last_ble = 0;      // for sample timing
+uint32_t last_ble = 0;      // for sample timing
 uint16_t last_ble_dur = 0;  // for samble timing
 uint8_t status_step_ble = 0;
 #endif
 bool ble_OK = false;
 
-uint16_t last_serial = 0;
+uint32_t last_serial = 0;
 uint16_t last_serial_dur = 0;
 uint8_t status_step_serial = 0;
 
 // pulsoxy
 bool pulsoxy_mode = false;
-uint16_t last_pulsoxy = 0;      // for sample timing
+uint32_t last_pulsoxy = 0;      // for sample timing
 uint16_t last_pulsoxy_dur = 0;  // for samble timing
 uint8_t pulsoxy_frame_count = 0;
 // frame data
@@ -138,23 +138,23 @@ extern "C" {
 }
 
 // feedback
-uint16_t last_feedback = 0;
+uint32_t last_feedback = 0;
 uint16_t last_feedback_dur = 0;
-uint16_t last_inhale = 0;
+uint32_t last_inhale = 0;
 uint16_t last_inhale_dur = 0;
-uint16_t last_exhale = 0;
+uint32_t last_exhale = 0;
 uint16_t last_exhale_dur = 0;
-uint16_t last_idle = 0;
+uint32_t last_idle = 0;
 uint16_t last_idle_dur = 0;
 
 // breathing sensor
-uint16_t last_sense_breathing = 0;      // for sample timing
+uint32_t last_sense_breathing = 0;      // for sample timing
 uint16_t last_sense_breathing_dur = 0;  // for samble timing
 int breathval = 0;
 bool valve_on = false;
 
 // altitude sensor
-uint16_t last_sense_altitude = 0;
+uint32_t last_sense_altitude = 0;
 uint16_t last_sense_altitude_dur = 0;
 int temperature = 0;
 int altitude = 0;  // pressure alt in m (based on 1013 hPa)
@@ -171,12 +171,12 @@ Adafruit_BMP280 bmp(baro_cs);
 int oxygen_start_alts[] = {2625, 1524}; // FL80, FL50, CAREFUL: length 2 expected
 uint8_t alt_setting = 1;  // used as index in above arrays
 int oxygen_pct = 0; // 0-100
-int oxygen_total_ms = 0;  // FYI: int is 4 bits and overflows at 2147483647 or 596h
-uint16_t last_oxygen_on = 0;
+uint32_t oxygen_total_ms = 0;  // FYI: int is 4 bits and overflows at 2147483647 or 596h
+uint32_t last_oxygen_on = 0;
 
 // battery voltage monitoring
 void sense_battery(bool noSmooth=false);
-uint16_t last_sense_battery = 0;
+uint32_t last_sense_battery = 0;
 uint16_t last_sense_battery_dur = 0;
 float bat_pct = 0.9;
 
@@ -192,11 +192,11 @@ char status_bits = 0;
 
 // buttons
 volatile bool button1_short_handled = true;
-volatile uint16_t last_button1 = 0;
+volatile uint32_t last_button1 = 0;
 volatile uint16_t last_button1_dur = 0;
 bool button1_state = LOW;
 volatile bool button2_short_handled = true;
-volatile uint16_t last_button2 = 0;
+volatile uint32_t last_button2 = 0;
 volatile uint16_t last_button2_dur = 0;
 bool button2_state = LOW;
 
