@@ -92,6 +92,7 @@ uint16_t last_serial_dur = 0;
 uint8_t status_step_serial = 0;
 
 // pulsoxy
+bool spo2_mode = false;
 uint16_t last_pulsoxy = 0;      // for sample timing
 uint16_t last_pulsoxy_dur = 0;  // for samble timing
 uint8_t pulsoxy_frame_count = 0;
@@ -129,6 +130,16 @@ extern "C" {
   #include "rhythm.h"
   #include "pitches.h"
 }
+
+// feedback
+uint16_t last_feedback = 0;
+uint16_t last_feedback_dur = 0;
+uint16_t last_inhale = 0;
+uint16_t last_inhale_dur = 0;
+uint16_t last_exhale = 0;
+uint16_t last_exhale_dur = 0;
+uint16_t last_idle = 0;
+uint16_t last_idle_dur = 0;
 
 // breathing sensor
 uint16_t last_sense_breathing = 0;      // for sample timing
@@ -265,7 +276,7 @@ void setup(void) {
     set_led_color_lerp(C_WHITE, C_GREEN, t);
     delay(10);
   }
-  delay(300);
+  delay(600);
   set_led_off();
 
   // set valve voltage to 12V
@@ -366,6 +377,12 @@ void setup(void) {
 
 
 void loop() {
+  last_feedback_dur = millis()-last_feedback;
+  if (last_feedback_dur > 5) {
+    handle_feedback();
+    last_feedback = millis();
+  }
+
   last_sense_breathing_dur = millis()-last_sense_breathing;
   if (last_sense_breathing_dur > RHYTHM_TEMPRES) {
     sense_breathing();
@@ -447,39 +464,103 @@ void sense_breathing() {
       valve_on = false;
     }
   }
-  // display
+}
+
+
+void handle_feedback() {
   if (baseline_set()) {
-    int bl = get_baseline();
-    if (valve_on) {
-      // if (pulsoxy_spo2 > STATUS_SPO2_LOW) {
-      //   set_led_color(C_GREEN, 60);
-      // } else {
-      //   set_led_color(C_RED, 100);  // low spo2
-      // }
-    } else if (breathval > bl+3) {  // exhale
-      if (bat_pct <= STATUS_BAT_LOW) {
-        set_led_color(C_RED, 50);
-      } else if (bat_pct <= STATUS_BAT_CAUTION) {
-        set_led_color(C_ORANGE, 50);
-      } else {
-        set_led_color(C_GREEN, 50);
+    if (rhythm_get_phase() == PHASE_INHALE) {  // inhale
+      // green ... baro mode OK
+      // blue ... spo2 mode OK
+      // orange ... spo2 caution
+      // red ... spo2 warning
+      if (last_inhale == 0) {  // inhale starts
+        last_inhale = millis();
+        last_exhale = 0;  // end exhale
+        last_idle = 0;  // end idle
+      } else {  // inhale ongoing
+        last_inhale_dur = millis()-last_inhale;
+        if (spo2_mode) {
+          if (pulsoxy_spo2 <= STATUS_SPO2_LOW) {
+            set_led_color(C_RED, 100);
+          } else if (pulsoxy_spo2 <= STATUS_SPO2_CAUTION) {
+            set_led_color(C_ORANGE, 80);
+          } else {
+            set_led_color(C_BLUE, 60);
+          }
+        } else {
+          set_led_color(C_GREEN, 60);
+        }
       }
-    } else if (breathval < bl-3) {  // inhale
-      if (pulsoxy_spo2 <= STATUS_SPO2_LOW) {
-        set_led_color(C_RED, 100);  // low spo2
-      } else if (pulsoxy_spo2 <= STATUS_SPO2_CAUTION) {
-        set_led_color(C_ORANGE, 80);
-      } else {
-        set_led_color(C_GREEN, 60);
+    } else if (rhythm_get_phase() == PHASE_EXHALE) {  // exhale
+      // green-green-green ... OK, BLE disconnected
+      // green-green-blue ... OK, BLE connected
+      // orange-orange ... bat caution
+      // red ... bat warning
+      if (last_exhale == 0) {  // exhale starts
+        last_exhale = millis();
+        last_inhale = 0;  // end inhale
+        last_idle = 0;  // end idle
+        set_led_off();
+      } else {  // exhale ongoing
+        last_exhale_dur = millis()-last_exhale;
+        // int start_delay = 0.3*rhythm_get_period_ms();
+        int start_delay = 500;
+        if (last_exhale_dur > start_delay) {
+          // three blinks
+          // blink1on-link1off-blink2on-blink2off-blink3on-blink3off
+          //        50     150       50       150      50
+          //     0     50      200       250      400     450
+          if (last_exhale_dur > start_delay+450) {  // blink3off
+            set_led_off();
+          } else if (last_exhale_dur > start_delay+400) {  // blink3on
+            if (ble.isConnected()) {
+              set_led_color(C_BLUE, 50);
+            } else {
+              set_led_color(C_GREEN, 50);
+            }
+          } else if (last_exhale_dur > start_delay+250) {  // blink2off
+            set_led_off();
+          } else if (last_exhale_dur > start_delay+200) {  // blink2on
+            if (bat_pct <= STATUS_BAT_CAUTION) {
+              set_led_color(C_ORANGE, 50);
+            } else {
+              set_led_color(C_GREEN, 50);
+            }
+          } else if (last_exhale_dur > start_delay+50) {  // blink1off
+            set_led_off();
+          } else {  // blink1on
+            if (bat_pct <= STATUS_BAT_LOW) {
+              set_led_color(C_RED, 50);
+            } else if (bat_pct <= STATUS_BAT_CAUTION) {
+              set_led_color(C_ORANGE, 50);
+            } else {
+              set_led_color(C_GREEN, 50);
+            }
+          }
+        }
       }
-      // set_led_lum(abs(breathval-get_baseline())*4);
-    } else {  // breath idle
-      if (bat_pct > STATUS_BAT_LOW) {
-        // set_led_color(C_GREEN);
-      } else {
-        // set_led_color(C_ORANGE);  // low bat
+      last_idle = 0;  // end idle
+    } else if (rhythm_get_phase() == PHASE_IDLE) {  // breath idle
+      if (last_idle == 0) {  // idle starts
+        last_idle = millis();
+        last_inhale = 0;  // end inhale
+        last_exhale = 0;  // end exhale
+        if (bat_pct <= STATUS_BAT_LOW) {
+          set_led_color(C_RED, 20);
+        } else if (bat_pct <= STATUS_BAT_CAUTION) {
+          set_led_color(C_ORANGE, 20);
+        } else {
+          set_led_color(C_GREEN, 20);
+        }
+      } else {  // idle ongoing
+        last_idle_dur = millis()-last_idle;
+        if (last_idle_dur > 6000) {
+          last_idle = 0;
+        } else if (last_idle_dur > 50) {
+          set_led_off();
+        }
       }
-      // set_led_lum(10);
     }
   }
 }

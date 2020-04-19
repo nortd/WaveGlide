@@ -22,10 +22,10 @@
 int vals[RHYTHM_VALS_SIZE] = {0};
 uint8_t vals_cursor = 0;
 
-#define RHYTHM_BASELINE_TOL_LOW 2
+#define RHYTHM_BASELINE_TOL_LOW 1
 #define RHYTHM_BASELINE_TOL_HIGH 8
 #define RHYTHM_BASELINE_DUR 1000/RHYTHM_TEMPRES  // dur for new baseline, 1s
-#define RHYTHM_OFFLINE_DUR 4000/RHYTHM_TEMPRES   // time considered as canula off event
+#define RHYTHM_OFFLINE_DUR 6000/RHYTHM_TEMPRES   // time considered as canula off event
 int baseline = 512;  // baseline sensor read (when not breathing)
 int baseline_last_ref = 512;
 bool baseline_ref_set = false;
@@ -50,6 +50,7 @@ uint8_t oxygen_cycle_count = 0;
 uint8_t oxygen_every = 1;
 
 float breath_strength = 0;
+uint8_t phase = PHASE_IDLE;
 
 void rhythm_addval(int val) {
   // find feature and calculate period and phase
@@ -59,7 +60,7 @@ void rhythm_addval(int val) {
       && val >= (baseline_last_ref - baseline_last_tol)) {
     // val around baseline_last_ref
     baseline_flat_dur++;
-    if (baseline_flat_dur > 24) {
+    if (baseline_flat_dur > 48) {
       // reduce sensitivity
       baseline_last_tol = RHYTHM_BASELINE_TOL_HIGH;
     }
@@ -96,11 +97,15 @@ void rhythm_addval(int val) {
     } while (k != vals_cursor);
 
     // check for period feature
-    if (baseline_flat_dur < 6
-        && val_oldest+RHYTHM_FEATURE_SUCK > baseline
+    if (val_oldest+RHYTHM_FEATURE_SUCK > baseline
         && val_youngest+RHYTHM_FEATURE_SUCK < baseline
       ) {
-      // found end of exhale
+    // if (baseline_flat_dur < 6
+    //     && val_oldest+RHYTHM_FEATURE_SUCK > baseline
+    //     && val_youngest+RHYTHM_FEATURE_SUCK < baseline
+    //   ) {
+      // found start of inhale
+      phase = PHASE_INHALE;
       // set last_period, cap
       if (sample_count > 1.5*last_period) {
         last_period = floor(1.5*last_period);
@@ -112,6 +117,9 @@ void rhythm_addval(int val) {
       last_period_smoothed = 0.7*last_period_smoothed + 0.3*last_period;
       sample_count = 0;
       feature_dedection_delayer = 0;
+    } else if (val_oldest > baseline && val_youngest > baseline) {
+      // found start of exhale
+      phase = PHASE_EXHALE;
     }
   }
 
@@ -122,6 +130,8 @@ void rhythm_addval(int val) {
 
   // canula/user offline detection
   if (baseline_flat_dur > RHYTHM_OFFLINE_DUR) {
+    // found idle
+    phase = PHASE_IDLE;
     // rhythm_count_max = RHYTHM_COUNT_MAX_DEFAULT;
   }
 
@@ -182,8 +192,8 @@ int rhythm_get_period_ms() {
   return last_period_smoothed*RHYTHM_TEMPRES;
 }
 
-int rhythm_get_phase_ms() {
-  return sample_count*RHYTHM_TEMPRES;
+uint8_t rhythm_get_phase() {
+  return phase;
 }
 
 bool baseline_set() {

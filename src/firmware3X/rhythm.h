@@ -19,13 +19,16 @@
 
 #define RHYTHM_TEMPRES 100  // temporal resolution in ms
 #define BREATH_STRENGTH_100 20  // what is considered 100%
+#define PHASE_INHALE 1
+#define PHASE_EXHALE 2
+#define PHASE_IDLE 3
 
 // void rhythm_init();
 
 void rhythm_addval(int val);
 bool rhythm_oxygen(int dur_pct);
 int rhythm_get_period_ms();
-int rhythm_get_phase_ms();
+uint8_t rhythm_get_phase();
 bool baseline_set();
 int get_baseline();
 int rhythm_get_baseline();
