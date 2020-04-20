@@ -43,6 +43,12 @@
 #define STATUS_BREATH_FAST 1000
 #define PULSOXY_MIN_SIGNAL 2
 
+// SPO2 PID
+#define SPO2_SETPOINT 95
+#define KP .12
+#define KI .0003
+#define KD 0
+
 #define C_BLUE 0x0033ff
 #define C_GREEN 0x00ff11
 #define C_YELLOW 0xffff00
@@ -91,6 +97,7 @@
 
 #include <SPI.h>
 #include "Adafruit_BMP280.h"
+#include "AutoPID.h"
 
 #ifdef BLE_ENABLE
 #include "Adafruit_BLE.h"
@@ -143,6 +150,9 @@ uint8_t frame_pulsoxy_heartrate = 0;
 uint8_t frame_pulsoxy_spo2 = 0;
 char frame_pulsoxy_status_bits = 0;
 
+double inputPID, outputPID;
+double setpointPID = SPO2_SETPOINT;
+AutoPID spo2PID(&inputPID, &setpointPID, &outputPID, 0, 100, KP, KI, KD);
 
 extern "C" {
   #include "rhythm.h"
@@ -368,6 +378,8 @@ void setup(void) {
   // set pulsoxyOK bit to TRUE
   // (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
   pulsoxy_status_bits = pulsoxy_status_bits|0b00000001;
+  spo2PID.setBangBang(10, 5);  //at or below SPO2_SETPOINT-10 set to MAX, at or above SPO2_SETPOINT+5 set to MIN
+  spo2PID.setTimeStep(4000);  // compute every 4s even if run is called more often
   #endif
 
   // battery voltage feedback
@@ -660,12 +672,9 @@ void set_oxygen_pct(float alt) {
   }
   // apply adjustement setting
   if (pulsoxy_mode) {
-    if (pulsoxy_spo2 <= 95) {
-      adj_pcts = 0.9*adj_pcts + 0.1*(0.01*map(pulsoxy_spo2, 85, 95, 200, 100));
-    } else if (pulsoxy_spo2 > 95) {
-      adj_pcts = 0.9*adj_pcts + 0.1*(0.01*map(pulsoxy_spo2, 96, 100, 100, 10));
-    }
-    oxygen_pct = oxygen_pct * adj_pcts;
+    inputPID = frame_pulsoxy_spo2;
+    spo2PID.run(); //updates automatically at certain time interval
+    oxygen_pct = round(outputPID);
   } else {
     oxygen_pct = 100;
   }
@@ -774,6 +783,7 @@ void handle_pulsoxy(){
       pulsoxy_spo2 = (pulsoxy_byte&127); // first 7 bits, 0-100%
       if (pulsoxy_spo2 != 127 && pulsoxy_signalstrength > PULSOXY_MIN_SIGNAL) {
         pulsoxy_mode = true;
+
       } else {
         pulsoxy_mode = false;
       }
