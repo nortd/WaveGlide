@@ -190,8 +190,7 @@ Adafruit_BMP280 bmp(baro_cs);
 // oxygen setting related
 #define METERS2FEET 3.28084
 #define OXYGEN_100PCT_ALTITUDE 9144  // FL300
-int oxygen_start_alts[] = {2625, 1524}; // FL80, FL50, CAREFUL: length 2 expected
-uint8_t alt_setting = 1;  // used as index in above arrays
+#define OXYGEN_START_ALT 1524  /*FL50*/
 int oxygen_pct = 0; // 0-100
 uint32_t oxygen_total_ms = 0;  // FYI: int is 4 bits and overflows at 2147483647 or 596h
 uint32_t last_oxygen_on = 0;
@@ -514,7 +513,9 @@ void handle_feedback() {
           } else {
             set_led_color(C_BLUE, NOTICE_BRIGHTNESS);
           }
-        } else {
+        } else if ((frame_pulsoxy_status_bits&0b00100000)>>5) {  // 100% mode
+          set_led_color(C_PINK, NOTICE_BRIGHTNESS);
+        } else { // baro mode
           set_led_color(C_GREEN, NOTICE_BRIGHTNESS);
         }
       }
@@ -657,29 +658,32 @@ void set_oxygen_pct(float alt) {
   // (0.00000084*x**2+ 0.00347*x)-2 - norm curve (less for initial O2 bursts)
   // (0.00000134*x**2+ 0.0036*x) - high curve
   // ((0.00000180*(x-1400)**2)+3) - low curve
-
-  // set a oxygen percentaged based on altitude
-  if (alt > oxygen_start_alts[alt_setting]) {
-    if (alt < OXYGEN_100PCT_ALTITUDE) {
-      // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
-      // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
-      oxygen_pct = ((0.00000180*(alt-1400)*(alt-1400))+3);  // above function
-    } else {
-      oxygen_pct = 100; // 100%
-    }
-  } else {
-    oxygen_pct = 0; // 0%, below start altitude
-  }
-  // apply adjustement setting
+  //
   if (pulsoxy_mode) {
+    // determin oxygen_pct with pulsoxy and PID algo
     inputPID = frame_pulsoxy_spo2;
     spo2PID.run(); //updates automatically at certain time interval
     oxygen_pct = round(outputPID);
-  } else {
+  } else if ((frame_pulsoxy_status_bits&0b00100000)>>5) {  // 100% mode
+    // probeOK, probe is connected but no pulsoxy_mode
+    // typically: probe present but finger not in probe
     oxygen_pct = 100;
+  } else {  // baro mode
+    // only when probe disconnected
+    // set a oxygen percentaged based on altitude
+    if (alt > OXYGEN_START_ALT) {
+      if (alt < OXYGEN_100PCT_ALTITUDE) {
+        // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
+        // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
+        oxygen_pct = ((0.00000180*(alt-1400)*(alt-1400))+3);  // above function
+        oxygen_pct = constrain(oxygen_pct, 0, 100);
+      } else {
+        oxygen_pct = 100; // 100%
+      }
+    } else {
+      oxygen_pct = 0; // 0%, below start altitude
+    }
   }
-  oxygen_pct = constrain(oxygen_pct, 0, 100);
-
 }
 
 
