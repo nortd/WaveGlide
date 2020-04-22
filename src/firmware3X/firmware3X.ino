@@ -44,7 +44,7 @@
 #define PULSOXY_MIN_SIGNAL 2
 
 // SPO2 PID
-#define SPO2_SETPOINT 95
+#define SPO2_SETPOINT 96
 #define KP .12
 #define KI .0003
 #define KD 0
@@ -377,7 +377,7 @@ void setup(void) {
   // set pulsoxyOK bit to TRUE
   // (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
   pulsoxy_status_bits = pulsoxy_status_bits|0b00000001;
-  spo2PID.setBangBang(10, 5);  //at or below SPO2_SETPOINT-10 set to MAX, at or above SPO2_SETPOINT+5 set to MIN
+  spo2PID.setBangBang(8, 5);  //at or below SPO2_SETPOINT-10 set to MAX, at or above SPO2_SETPOINT+5 set to MIN
   spo2PID.setTimeStep(4000);  // compute every 4s even if run is called more often
   #endif
 
