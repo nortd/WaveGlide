@@ -28,7 +28,7 @@
 // Developed on Arduino 1.8.5
 
 // version
-#define VERSION "2.0.1"
+#define VERSION "3.0.3"
 #define BLE_ENABLE
 #define SPO2_ENABLE
 #define BARO_ENABLE
@@ -57,6 +57,8 @@
 #define C_PINK 0xff00ff
 #define C_BLACK 0x000000
 #define C_WHITE 0xffffff
+#define C_DARKRED 0x440000
+#define C_DDARKRED 0x110000
 
 #define LOWKEY_BRIGHTNESS 15
 #define NOTICE_BRIGHTNESS 50
@@ -93,6 +95,7 @@
 #define button1 15   // DB9 pin4, pressed by shorting it to DB9 pin1
 #define button2 16   // DB9 pin8, pressed by shorting it to DB9 pin1
 #define voltconf 17  // A3, if high activates R1.33 and outputs 12V (instead of 5V) on valve
+#define usbvolts 14  // A0, sense if usb plugged in
 
 
 #include <SPI.h>
@@ -296,6 +299,10 @@ void setup(void) {
   pinMode(button1, INPUT_PULLUP);
   pinMode(button2, INPUT_PULLUP);
   pinMode(voltconf, OUTPUT);
+  pinMode(usbvolts, INPUT);
+
+  // run a separate loop if USB-C connected
+  charging_loop();
 
   // init status rgb led
   for (int t=0; t<100; t++) {
@@ -420,6 +427,7 @@ void loop() {
   last_sense_battery_dur = millis()-last_sense_battery;
   if (last_sense_battery_dur > RHYTHM_TEMPRES*30) {
     sense_battery();
+    charging_loop();
     last_sense_battery = millis();
   }
 
@@ -471,6 +479,23 @@ void loop() {
   // }
 }
 
+
+void charging_loop() {
+  // check if USB is plugged in
+  while (analogRead(usbvolts) > 800) {  // empiric
+    // capture loop, TODO power saving
+    // init status rgb led
+    for (int t=0; t<100; t++) {
+      set_led_color_lerp(C_DDARKRED, C_DARKRED, t);
+      delay(10);
+    }
+    delay(300);
+    for (int t=0; t<100; t++) {
+      set_led_color_lerp(C_DARKRED, C_DDARKRED, t);
+      delay(10);
+    }
+  }
+}
 
 
 void sense_breathing() {
@@ -919,6 +944,7 @@ void send_status_ble() {
   if (ble.isConnected()) {
     if (status_step_ble == 0) {
       ble.print(rhythm_get_strength());
+      // ble.print(analogRead(usbvolts));
       ble.print(" ");
       status_step_ble += 1;
     } else if (status_step_ble == 1) {
