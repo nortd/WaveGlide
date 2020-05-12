@@ -427,7 +427,7 @@ void loop() {
   last_sense_battery_dur = millis()-last_sense_battery;
   if (last_sense_battery_dur > RHYTHM_TEMPRES*30) {
     sense_battery();
-    charging_loop();
+    // charging_loop();
     last_sense_battery = millis();
   }
 
@@ -482,7 +482,7 @@ void loop() {
 
 void charging_loop() {
   // check if USB is plugged in
-  while (analogRead(usbvolts) > 800) {  // empiric
+  while (analogRead(usbvolts) > 600) {  // empiric
     // capture loop, TODO power saving
     // init status rgb led
     for (int t=0; t<100; t++) {
