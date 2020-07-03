@@ -302,7 +302,7 @@ void setup(void) {
   pinMode(usbvolts, INPUT);
 
   // run a separate loop if USB-C connected
-  charging_loop();
+  // charging_loop();
 
   // init status rgb led
   for (int t=0; t<100; t++) {
