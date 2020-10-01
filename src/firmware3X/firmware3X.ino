@@ -45,8 +45,8 @@
 
 // SPO2 PID
 #define SPO2_SETPOINT 96
-#define KP .12
-#define KI .0003
+#define KP 0.6
+#define KI .05
 #define KD 0
 
 #define C_BLUE 0x0033ff
