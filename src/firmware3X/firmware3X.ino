@@ -28,12 +28,11 @@
 // Developed on Arduino 1.8.5
 
 // version
-#define VERSION "3.0.3"
+#define VERSION "3.0.4"
 #define BLE_ENABLE
 #define SPO2_ENABLE
 #define BARO_ENABLE
 #define SERIAL_DEBUG_ENABLE
-// #define SIMULATE_ALTITUDE 4500
 
 #define STATUS_SPO2_CAUTION 93
 #define STATUS_SPO2_LOW 88
@@ -42,12 +41,6 @@
 #define STATUS_BREATH_LOW 15
 #define STATUS_BREATH_FAST 1000
 #define PULSOXY_MIN_SIGNAL 2
-
-// SPO2 PID
-#define SPO2_SETPOINT 96
-#define KP 0.6
-#define KI .05
-#define KD 0
 
 #define C_BLUE 0x0033ff
 #define C_GREEN 0x00ff11
@@ -100,7 +93,6 @@
 
 #include <SPI.h>
 #include "Adafruit_BMP280.h"
-#include "AutoPID.h"
 
 #ifdef BLE_ENABLE
 #include "Adafruit_BLE.h"
@@ -121,9 +113,14 @@ uint8_t status_step_serial = 0;
 
 // pulsoxy
 bool pulsoxy_mode = false;
+uint16_t pulsoxy_last_on = 0;
 uint32_t last_pulsoxy = 0;      // for sample timing
 uint16_t last_pulsoxy_dur = 0;  // for samble timing
 uint8_t pulsoxy_frame_count = 0;
+uint32_t last_pulsoxy_adjust = 0;
+uint16_t last_pulsoxy_adjust_dur = 0;
+uint16_t next_pulsoxy_adjust = 4000;  // start checking after 4s
+uint8_t pulsoxy_adjust_action = 0;
 // frame data
 uint8_t pulsoxy_byte = 0;
 uint8_t pulsoxy_syncbit = 0;
@@ -153,9 +150,6 @@ uint8_t frame_pulsoxy_heartrate = 0;
 uint8_t frame_pulsoxy_spo2 = 0;
 char frame_pulsoxy_status_bits = 0;
 
-double inputPID, outputPID;
-double setpointPID = SPO2_SETPOINT;
-AutoPID spo2PID(&inputPID, &setpointPID, &outputPID, 0, 100, KP, KI, KD);
 
 extern "C" {
   #include "rhythm.h"
@@ -179,11 +173,13 @@ int breathval = 0;
 bool valve_on = false;
 
 // altitude sensor
+#define LOOP_ALTITUDE_MS RHYTHM_TEMPRES*20
 uint32_t last_sense_altitude = 0;
 uint16_t last_sense_altitude_dur = 0;
 int temperature = 0;
 int altitude = 0;  // pressure alt in m (based on 1013 hPa)
 float altitude_smoothed = 0;
+bool altitude_simulation = false;  // enabled by holding user1_btn at startup
 int flight_level = 0;  // in feet /100
 #ifdef BARO_ENABLE
 // barometric sensor via SPI
@@ -193,12 +189,23 @@ Adafruit_BMP280 bmp(baro_cs);
 // oxygen setting related
 #define METERS2FEET 3.28084
 #define OXYGEN_100PCT_ALTITUDE 9144  // FL300
-#define OXYGEN_START_ALT 1524  /*FL50*/
+#define OXYGEN_START_ALT 1524        //FL50
+#define OXYGEN_SPO2_LOWER1 95        // when to step up oxygen_pct (by one)
+#define OXYGEN_SPO2_LOWER2 91        // when to step up oxygen_pct (by five)
+#define OXYGEN_SPO2_UPPER 96         // when to step down oxygen_pct (by one)
+#define OXYGEN_SPO2_CRITICAL 88      // 100%, then 2.0
+#define OXYGEN_SPO2_DELAY_MS 90000   // 100%, then 2.0
 int oxygen_pct = 0; // 0-100
 uint32_t oxygen_total_ms = 0;  // FYI: int is 4 bits and overflows at 2147483647 or 596h
 uint32_t last_oxygen_on = 0;
+float adj_pcts[] = {0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0};  // CAREFUL: length 11 expected
+int8_t adj_setting_default = 5;  // init with 1.0
+int8_t adj_setting = adj_setting_default;
+float pulsoxy_spo2_smoothed = 0;
+bool oxygen_100pct_mode = false;
 
 // battery voltage monitoring
+#define LOOP_BATTERY_MS RHYTHM_TEMPRES*30
 void sense_battery(bool noSmooth=false);
 uint32_t last_sense_battery = 0;
 uint16_t last_sense_battery_dur = 0;
@@ -225,9 +232,6 @@ volatile uint16_t last_button2_dur = 0;
 bool button2_state = LOW;
 
 // interface
-// adjustment percentages, applied to oxygen_pct
-float adj_pcts = 1.0;
-
 int rgb_r = 0;
 int rgb_g = 0;
 int rgb_b = 0;
@@ -343,18 +347,28 @@ void setup(void) {
   status_bits = status_bits|0b00010000;
   #endif
 
-  // set alt mode
+  // set alt simulation mode
   if (button1_held) {
-    // DISABLED for now
-    // If button was helled during power-up set to next alt mode.
-    // Specifically this means oxygenation starts at a higher alt.
-    // alt_setting++;
-    // if (alt_setting >= 2) { alt_setting = 0; }
+    set_led_color(C_BLUE, NOTICE_BRIGHTNESS);
+    delay(10);
+    set_led_off();
+    delay(200);
+    set_led_color(C_BLUE, NOTICE_BRIGHTNESS);
+    delay(10);
+    set_led_off();
+    delay(200);
+    set_led_color(C_BLUE, NOTICE_BRIGHTNESS);
+    delay(10);
+    set_led_off();
+    delay(200);
+    //
+    randomSeed(analogRead(usbvolts));
+    altitude = random(4000, 9000);
+    altitude_simulation = true;
   }
 
   if (button2_held) {
     // DISABLED
-    // TODO: RESET
   }
 
   // enable button interrupt
@@ -384,8 +398,6 @@ void setup(void) {
   // set pulsoxyOK bit to TRUE
   // (_, signalOK, probeOK, sensorOK, pulseOK, _, _, pulsoxyOK)
   pulsoxy_status_bits = pulsoxy_status_bits|0b00000001;
-  spo2PID.setBangBang(8, 5);  //at or below SPO2_SETPOINT-10 set to MAX, at or above SPO2_SETPOINT+5 set to MIN
-  spo2PID.setTimeStep(4000);  // compute every 4s even if run is called more often
   #endif
 
   // battery voltage feedback
@@ -425,7 +437,7 @@ void loop() {
   }
 
   last_sense_battery_dur = millis()-last_sense_battery;
-  if (last_sense_battery_dur > RHYTHM_TEMPRES*30) {
+  if (last_sense_battery_dur > LOOP_BATTERY_MS) {
     sense_battery();
     // charging_loop();
     last_sense_battery = millis();
@@ -433,7 +445,7 @@ void loop() {
 
   #ifdef BARO_ENABLE
   last_sense_altitude_dur = millis()-last_sense_altitude;
-  if (last_sense_altitude_dur > RHYTHM_TEMPRES*20) {
+  if (last_sense_altitude_dur > LOOP_ALTITUDE_MS) {
     sense_altitude();
     last_sense_altitude = millis();
   }
@@ -444,6 +456,17 @@ void loop() {
   if (last_pulsoxy_dur > 1) {
     handle_pulsoxy();
     last_pulsoxy = millis();
+  }
+  // pulsoxy adjustments
+  if (millis()-pulsoxy_last_on > 3000) { // pulsoxy inactive -> no modulation
+    adj_setting = adj_setting_default;
+    next_pulsoxy_adjust = 0;
+  } else {  // pulsoxy active, modulate baro curve
+    last_pulsoxy_adjust_dur = millis()-last_pulsoxy_adjust;
+    if (last_pulsoxy_adjust_dur > next_pulsoxy_adjust) {
+      handle_pulsoxy_adjust();
+      last_pulsoxy_adjust = millis();
+    }
   }
   #endif
 
@@ -531,9 +554,9 @@ void handle_feedback() {
       } else {  // inhale ongoing
         last_inhale_dur = millis()-last_inhale;
         if (pulsoxy_mode) {
-          if (pulsoxy_spo2 <= STATUS_SPO2_LOW) {
+          if (frame_pulsoxy_spo2 <= STATUS_SPO2_LOW) {
             set_led_color(C_RED, WARN_BRIGHTNESS);
-          } else if (pulsoxy_spo2 <= STATUS_SPO2_CAUTION) {
+          } else if (frame_pulsoxy_spo2 <= STATUS_SPO2_CAUTION) {
             set_led_color(C_ORANGE, CAUTION_BRIGHTNESS);
           } else {
             set_led_color(C_BLUE, NOTICE_BRIGHTNESS);
@@ -616,15 +639,13 @@ void handle_feedback_status_triple(uint16_t last_dur, uint16_t start_delay) {
 #ifdef BARO_ENABLE
 void sense_altitude() {
     temperature = round(bmp.readTemperature());
-    altitude = bmp.readAltitude(1013.25);
+    if (!altitude_simulation) {
+      altitude = bmp.readAltitude(1013.25);
+    }
 
     if (altitude < altitude_smoothed + 20000
         && altitude > altitude_smoothed - 1000) {
-      #ifdef SIMULATE_ALTITUDE
-      altitude_smoothed = SIMULATE_ALTITUDE;
-      #else
       altitude_smoothed = 0.8*altitude_smoothed + 0.2*altitude;
-      #endif
       set_oxygen_pct(altitude_smoothed);
     } else {
       // reject
@@ -667,43 +688,27 @@ void set_oxygen_pct(float alt) {
   // FL250 - 7620m -  72%
   // FL300 - 9144m - 100%
   //
-  // Need function to produce these factors:
-  //    0 -> 0
-  // 1524 -> 0.00525
-  // 3048 -> 0.00623
-  // 4572 -> 0.00722
-  // 6096 -> 0.00803
-  // 7620 -> 0.00945
-  // 9144 -> 0.01094
-  //
-  // Fitting these values:
-  // [[1524,0.00525], [3048,0.00623], [4572,0.00722], [6096,0.00803], [7620,0.00945], [9144,0.01094]]
-  // came up with this (using the "Fit" command on WolframAlpha):
-  // (0.0000008*x**2+ 0.0036*x)
+  // Fitting these values with WolframAlpha:
+  // fit [[1524,8], [3048,19], [4572,33], [6096,49], [7620,72], [9144,100]]
   // (0.00000084*x**2+ 0.00347*x)-2 - norm curve (less for initial O2 bursts)
   // (0.00000134*x**2+ 0.0036*x) - high curve
   // ((0.00000180*(x-1400)**2)+3) - low curve
   //
-  if (pulsoxy_mode) {
-    // determin oxygen_pct with pulsoxy and PID algo
-    inputPID = frame_pulsoxy_spo2;
-    spo2PID.run(); //updates automatically at certain time interval
-    oxygen_pct = round(outputPID);
-  } else if ((frame_pulsoxy_status_bits&0b00100000)>>5) {  // 100% mode
-    // probeOK, probe is connected but no pulsoxy_mode
-    // typically: probe present but finger not in probe
+
+  if (oxygen_100pct_mode) {
     oxygen_pct = 100;
   } else {  // baro mode
-    // only when probe disconnected
     // set a oxygen percentaged based on altitude
+    // SPO2 modulation if data available
     if (alt > OXYGEN_START_ALT) {
       if (alt < OXYGEN_100PCT_ALTITUDE) {
         // oxygen_pct = map(alt, 0, OXYGEN_100PCT_ALTITUDE, 0, 100); // linearly
         // oxygen_pct = (0.0000008*alt + 0.0036)*alt; // above function
         oxygen_pct = ((0.00000180*(alt-1400)*(alt-1400))+3);  // above function
+        oxygen_pct = round(oxygen_pct * adj_pcts[adj_setting]);  // apply adjustment
         oxygen_pct = constrain(oxygen_pct, 0, 100);
       } else {
-        oxygen_pct = 100; // 100%
+        oxygen_pct = 100; // 100%, above 100% altitude
       }
     } else {
       oxygen_pct = 0; // 0%, below start altitude
@@ -777,7 +782,7 @@ void handle_ble() {
 
 
 #ifdef SPO2_ENABLE
-void handle_pulsoxy(){
+void handle_pulsoxy() {
   if (Serial1.available()) {
     pulsoxy_byte = Serial1.read();
     pulsoxy_syncbit = (pulsoxy_byte&1<<7)>>7;
@@ -812,7 +817,7 @@ void handle_pulsoxy(){
       pulsoxy_spo2 = (pulsoxy_byte&127); // first 7 bits, 0-100%
       if (pulsoxy_spo2 != 127 && pulsoxy_signalstrength > PULSOXY_MIN_SIGNAL) {
         pulsoxy_mode = true;
-
+        pulsoxy_last_on = millis();
       } else {
         pulsoxy_mode = false;
       }
@@ -827,7 +832,8 @@ void handle_pulsoxy(){
       // push all pulsoxy frame data
       frame_pulsoxy_signalstrength = pulsoxy_signalstrength;
       frame_pulsoxy_heartrate = pulsoxy_heartrate;
-      frame_pulsoxy_spo2 = pulsoxy_spo2;
+      pulsoxy_spo2_smoothed = 0.5*pulsoxy_spo2_smoothed + 0.5*pulsoxy_spo2;
+      frame_pulsoxy_spo2 = round(pulsoxy_spo2_smoothed);
       frame_pulsoxy_status_bits = pulsoxy_status_bits;
       // set spo2LOW bit
       if (pulsoxy_spo2 < STATUS_SPO2_LOW) {
@@ -839,6 +845,68 @@ void handle_pulsoxy(){
     } else {
       // out of sync
     }
+  }
+}
+
+void handle_pulsoxy_adjust() {
+  // This function modulates the barometric control based on actual SpO2.
+  // Corrections factors are defined in adj_pcts and are selected with the
+  // indexer adj_setting. The range is from half (0.5) to double (2).
+  // (0.5, 0.6, 0.7, 0.8, 0.9, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0)
+  // Additionally the algorithm defines a LOWER1 (~95%), LOWER2 (~91%),
+  // CRITICAL (~88), UPPER (~96%) SpO2 limit.
+  //
+  // 1. delay action, allow for SPO2 to settle
+  // 2. check limits
+  //    a. if within limits do nothing
+  //    b. if above UPPER, step down
+  //    c. if below CRITICAL, 100% mode, then MAX
+  //    d. if below LOWER2, step up by five
+  //    e. if below LOWER1, step up by one
+  // 3. back to 1.
+  //
+  // The algorithm starts at 1.0 and can regulate to the MIN in 7.5min.
+  // From the MIN it can go to the MAX in 3min and has a
+  // critical limit which triggers 100% mode immediately for a duration of
+  // 60s then sets the factor to 2.0 subsequently.
+  //
+  // If pulsoxy inactive for more than 3s -> fall back to default baro curve.
+
+  if (pulsoxy_adjust_action == 0) { // check and set adjustment
+    next_pulsoxy_adjust = 1000;  // keep checking every 1s
+    if (pulsoxy_mode) {
+      if (frame_pulsoxy_spo2 <= OXYGEN_SPO2_UPPER
+          && frame_pulsoxy_spo2 >= OXYGEN_SPO2_LOWER1) {  // withing limits
+        // everything peachy, keep checking
+      } else {                                            // outside limits
+        if (frame_pulsoxy_spo2 > OXYGEN_SPO2_UPPER) {
+          adj_setting -= 1;
+          adj_setting = constrain(adj_setting, 0, 10);
+          next_pulsoxy_adjust = OXYGEN_SPO2_DELAY_MS;  // after 90s
+          pulsoxy_adjust_action = 0;                   // check again
+        } else if (frame_pulsoxy_spo2 < OXYGEN_SPO2_CRITICAL) {
+          // 100% mode temporarily, then max adjustment
+          oxygen_100pct_mode = true;
+          adj_setting = 10;  // for after 100% mode
+          next_pulsoxy_adjust = 60000;  // after 60s
+          pulsoxy_adjust_action = 1;    // exit 100%
+        } else if (frame_pulsoxy_spo2 < OXYGEN_SPO2_LOWER2) {
+          adj_setting += 5;
+          adj_setting = constrain(adj_setting, 0, 10);
+          next_pulsoxy_adjust = OXYGEN_SPO2_DELAY_MS;  // after 90ms
+          pulsoxy_adjust_action = 0;                   // check again
+        } else if (frame_pulsoxy_spo2 < OXYGEN_SPO2_LOWER1) {
+          adj_setting += 1;
+          adj_setting = constrain(adj_setting, 0, 10);
+          next_pulsoxy_adjust = OXYGEN_SPO2_DELAY_MS;  // after 90s
+          pulsoxy_adjust_action = 0;                   // check again
+        }
+      }
+    }
+  } else if (pulsoxy_adjust_action == 1) {  // exit 100% mode
+    oxygen_100pct_mode = false;
+    next_pulsoxy_adjust = OXYGEN_SPO2_DELAY_MS;    // after 90s
+    pulsoxy_adjust_action = 0;                     // check again
   }
 }
 #endif

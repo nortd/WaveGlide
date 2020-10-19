@@ -1,3 +1,9 @@
+Hannes Steps 2020-10-03 -> inplemented in 3.0.4
+-----------------------
+- baro first, then modulate by spo2
+- alt simulation mode by holding user1_btn at startup
+  - paperclip between pin 1 and 4 of DB9 connector
+
 Waveglide 3X firmware
 ---------------------
 - check protocol
