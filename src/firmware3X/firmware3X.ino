@@ -886,6 +886,7 @@ void handle_pulsoxy_adjust() {
           pulsoxy_adjust_action = 0;                   // check again
         } else if (frame_pulsoxy_spo2 < OXYGEN_SPO2_CRITICAL) {
           // 100% mode temporarily, then max adjustment
+          // TODO: check critical also when in delay (for responsivness)
           oxygen_100pct_mode = true;
           adj_setting = 10;  // for after 100% mode
           next_pulsoxy_adjust = 60000;  // after 60s
